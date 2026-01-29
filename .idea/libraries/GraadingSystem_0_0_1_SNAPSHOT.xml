@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="GraadingSystem-0.0.1-SNAPSHOT">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/Backend/GraadingSystem/GraadingSystem/target/GraadingSystem-0.0.1-SNAPSHOT.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
