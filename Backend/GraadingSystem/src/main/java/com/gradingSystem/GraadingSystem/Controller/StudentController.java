@@ -38,10 +38,9 @@ public class StudentController {
         return "Student deleted succesfully";
     }
 
-    @PutMapping("/update")
+    @PutMapping("/update/{id}")
     public Students updateStudents(@PathVariable Long id, @RequestBody Students students){
-       return studentService.updateStudents(id,students);
-
+        return studentService.updateStudents(id, students);
     }
 
 
