@@ -26,19 +26,31 @@ public class MarksService {
     @Autowired
     private SubjectRepo subjectRepo;
 
+
     @Transactional
     public List<Marks> addMarksForManyStudents(MarksBatchRequest request) {
 
+        // 1️⃣ Get the subject
         Subjects subject = subjectRepo.findById(request.getSubjectId())
                 .orElseThrow(() -> new RuntimeException("Subject not found"));
 
         List<Marks> marksList = new ArrayList<>();
+
 
         for (MarksBatchRequest.StudentMarks sm : request.getMarks()) {
 
             Students student = studentRepo.findById(sm.getStudentId())
                     .orElseThrow(() ->
                             new RuntimeException("Student not found: " + sm.getStudentId()));
+
+
+            if (marksrepo.existsByStudentAndSubject(student, subject)) {
+                throw new RuntimeException(
+                        "Marks already exist for student " + student.getId()
+                                + " in subject " + subject.getSubjectId()
+                );
+            }
+
 
             Marks marks = new Marks(
                     sm.getMarksValue(),
@@ -49,6 +61,11 @@ public class MarksService {
             marksList.add(marks);
         }
 
-        return marksrepo.saveAll(marksList);
+
+        List<Marks> savedMarks = marksrepo.saveAll(marksList);
+
+
+
+        return savedMarks;
     }
 }

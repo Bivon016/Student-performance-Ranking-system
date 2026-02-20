@@ -6,8 +6,9 @@ import {
   TrendingUp, 
   BarChart3,
   Settings,
-  LogOut
-} from 'lucide-react';
+  LogOut,
+  BookOpen
+} from 'lucide-react'; // <-- added BookOpen for subjects
 
 const Sidebar = () => {
   const location = useLocation();
@@ -15,6 +16,7 @@ const Sidebar = () => {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: <Home size={20} /> },
     { path: '/students', label: 'Students', icon: <Users size={20} /> },
+    { path: '/subjects', label: 'Subjects', icon: <BookOpen size={20} /> }, // <-- new
     { path: '/rankings', label: 'Rankings', icon: <TrendingUp size={20} /> },
     { path: '/analytics', label: 'Analytics', icon: <BarChart3 size={20} /> },
   ];

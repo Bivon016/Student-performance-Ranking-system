@@ -10,7 +10,7 @@ public class Subjects {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "subjectId")
+    @Column(name = "subject_id")
     private Long subjectId;
 
     @Column(name = "subject_name", nullable = false, length = 20)

@@ -21,7 +21,7 @@ public class Marks {
     private Students student;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subject_id", referencedColumnName = "subjectId", nullable = false)
+    @JoinColumn(name = "subject_id", referencedColumnName = "subject_id", nullable = false)
     private Subjects subject;
 
     // Constructor for service to use

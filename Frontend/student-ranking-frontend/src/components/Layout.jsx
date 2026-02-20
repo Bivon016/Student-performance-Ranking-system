@@ -52,6 +52,12 @@ const Layout = () => {
       icon: <Users size={20} />,
       type: 'link'
     },
+     {
+    title: 'Subjects',          // <-- added Subjects here
+    path: '/subjects',
+    icon: <FileText size={20} />, // or BookOpen
+    type: 'link'
+  },
     {
       title: 'Marks',
       path: '/marks',
