@@ -1,51 +1,36 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Lock, Mail, Eye, EyeOff, School } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Lock, Mail, School } from 'lucide-react';
 
-const Login = () => {
+const Signup = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8080/auth/login', {
+      const response = await fetch('http://localhost:8080/public/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
 
       if (response.ok) {
-        // Backend returns plain text JWT
-        const token = await response.text();
-
-        if (!token) {
-          setError('Login failed: token missing.');
-          setLoading(false);
-          return;
-        }
-
-        // Save token and username
-        localStorage.setItem('token', token);
-        localStorage.setItem('username', username);
-
-        // Redirect to dashboard/home
-        navigate('/');
-      } else if (response.status === 401 || response.status === 403) {
-        setError('Invalid username or password.');
+        const text = await response.text();
+        setMessage(text); // "User registered successfully!"
+        setTimeout(() => navigate('/login'), 1500); // redirect after signup
       } else {
-        setError('Something went wrong. Please try again.');
+        setMessage('Signup failed. Please try again.');
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to connect to server.');
+      setMessage('Failed to connect to server.');
     }
 
     setLoading(false);
@@ -60,21 +45,20 @@ const Login = () => {
             <School className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Student Ranking System</h1>
-          <p className="text-gray-600">Administrator Login</p>
+          <p className="text-gray-600">Administrator Signup</p>
         </div>
 
-        {/* Login Card */}
+        {/* Signup Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Welcome Back</h2>
-          
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg">
-              {error}
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Create an Account</h2>
+
+          {message && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded-lg">
+              {message}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            {/* Username */}
+          <form onSubmit={handleSignup} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Username
@@ -85,14 +69,13 @@ const Login = () => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Your username"
+                  placeholder="Enter username"
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Password
@@ -100,41 +83,23 @@ const Login = () => {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing up...' : 'Sign Up'}
             </button>
-
-            <div className="mt-4 text-center text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link
-                to="/signup"
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Sign Up
-              </Link>
-            </div>
           </form>
         </div>
       </div>
@@ -142,4 +107,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Signup;

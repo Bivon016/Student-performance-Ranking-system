@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  getAllStudents,
-  addStudent,
-  deleteStudent,
-  updateStudent
-} from "../services/api";
+import { getAllStudents, addStudent, deleteStudent, updateStudent } from "../services/api";
 
 const Students = () => {
   const [students, setStudents] = useState([]);
@@ -14,7 +9,7 @@ const Students = () => {
     firstName: "",
     secondName: "",
     form: "",
-    gender: "Male"
+    gender: "Male",
   });
 
   const [editingId, setEditingId] = useState(null);
@@ -22,69 +17,76 @@ const Students = () => {
     firstName: "",
     secondName: "",
     form: "",
-    gender: "Male"
+    gender: "Male",
   });
 
-  const loadStudents = () => {
-    getAllStudents()
-      .then(setStudents)
-      .catch(err => setError(err.message));
+  // ---------- LOAD STUDENTS ----------
+  const loadStudents = async () => {
+    try {
+      const data = await getAllStudents(); // uses apiFetch, so JWT is included
+      setStudents(data);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   useEffect(() => {
     loadStudents();
   }, []);
 
-  // ---------- ADD HANDLERS ----------
-  const handleAddChange = e => {
+  // ---------- ADD STUDENT ----------
+  const handleAddChange = (e) => {
     setAddingStudent({ ...addingStudent, [e.target.name]: e.target.value });
   };
 
-  const handleAddStudent = e => {
+  const handleAddStudent = async (e) => {
     e.preventDefault();
-    addStudent({ ...addingStudent, form: Number(addingStudent.form) })
-      .then(() => {
-        setAddingStudent({ firstName: "", secondName: "", form: "", gender: "Male" });
-        loadStudents();
-      })
-      .catch(err => setError(err.message));
+    try {
+      await addStudent({ ...addingStudent, form: Number(addingStudent.form) });
+      setAddingStudent({ firstName: "", secondName: "", form: "", gender: "Male" });
+      loadStudents();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  // ---------- DELETE ----------
-  const handleDelete = id => {
+  // ---------- DELETE STUDENT ----------
+  const handleDelete = async (id) => {
     if (!window.confirm("Delete this student?")) return;
-    deleteStudent(id)
-      .then(() => loadStudents())
-      .catch(err => setError(err.message));
+    try {
+      await deleteStudent(id);
+      loadStudents();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  // ---------- EDIT ----------
-  const startEdit = student => {
+  // ---------- EDIT STUDENT ----------
+  const startEdit = (student) => {
     setEditingId(student.id);
     setEditData({
       firstName: student.firstName,
       secondName: student.secondName,
       form: student.form,
-      gender: student.gender
+      gender: student.gender,
     });
   };
 
-  const handleEditChange = e => {
+  const handleEditChange = (e) => {
     setEditData({ ...editData, [e.target.name]: e.target.value });
   };
 
-  const saveEdit = id => {
-    updateStudent(id, { ...editData, form: Number(editData.form) })
-      .then(() => {
-        setEditingId(null);
-        loadStudents();
-      })
-      .catch(err => setError(err.message));
+  const saveEdit = async (id) => {
+    try {
+      await updateStudent(id, { ...editData, form: Number(editData.form) });
+      setEditingId(null);
+      loadStudents();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-  };
+  const cancelEdit = () => setEditingId(null);
 
   return (
     <div>
@@ -151,11 +153,10 @@ const Students = () => {
           </tr>
         </thead>
         <tbody>
-          {students.map(student => (
+          {students.map((student) => (
             <tr key={student.id}>
               <td className="border p-2">{student.id}</td>
 
-              {/* ---------- EDIT MODE ---------- */}
               {editingId === student.id ? (
                 <>
                   <td className="border p-2 flex gap-2">
@@ -209,7 +210,6 @@ const Students = () => {
                 </>
               ) : (
                 <>
-                  {/* ---------- NORMAL MODE ---------- */}
                   <td className="border p-2">
                     {student.firstName} {student.secondName}
                   </td>
