@@ -9,155 +9,179 @@ import {
 
 const Subjects = () => {
   const [subjects, setSubjects] = useState([]);
-  const [newSubjectName, setNewSubjectName] = useState("");
-  const [editingSubject, setEditingSubject] = useState(null);
-  const [editName, setEditName] = useState("");
+  const [error, setError] = useState(null);
 
-  // Fetch subjects on mount
-  const fetchSubjects = async () => {
+  const [addingSubject, setAddingSubject] = useState({
+    subjectName: "",
+  });
+
+  const [editingId, setEditingId] = useState(null);
+  const [editData, setEditData] = useState({
+    subjectName: "",
+  });
+
+  // ---------- LOAD SUBJECTS ----------
+  const loadSubjects = async () => {
     try {
       const data = await getAllSubjects();
       setSubjects(data);
     } catch (err) {
-      console.error(err);
+      setError(err.message);
     }
   };
 
   useEffect(() => {
-    fetchSubjects();
+    loadSubjects();
   }, []);
 
-  // Add a new subject
-  const handleAdd = async () => {
-    if (!newSubjectName.trim()) return;
+  // ---------- ADD SUBJECT ----------
+  const handleAddChange = (e) => {
+    setAddingSubject({
+      ...addingSubject,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleAddSubject = async (e) => {
+    e.preventDefault();
     try {
-      await addSubject({ subjectName: newSubjectName });
-      setNewSubjectName("");
-      fetchSubjects();
+      await addSubject(addingSubject);
+      setAddingSubject({ subjectName: "" });
+      loadSubjects();
     } catch (err) {
-      console.error(err);
+      setError(err.message);
     }
   };
 
-  // Start editing
-  const startEdit = (subject) => {
-    setEditingSubject(subject);
-    setEditName(subject.subjectName);
-  };
-
-  // Cancel editing
-  const cancelEdit = () => {
-    setEditingSubject(null);
-    setEditName("");
-  };
-
-  // Save edit
-  const handleUpdate = async () => {
-    if (!editName.trim()) return;
-    try {
-      await updateSubject(editingSubject.subjectId, { subjectName: editName });
-      cancelEdit();
-      fetchSubjects();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Delete subject
+  // ---------- DELETE SUBJECT ----------
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this subject?")) return;
+    if (!window.confirm("Delete this subject?")) return;
     try {
       await deleteSubject(id);
-      fetchSubjects();
+      loadSubjects();
     } catch (err) {
-      console.error(err);
+      setError(err.message);
     }
   };
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Subjects</h1>
+  // ---------- EDIT SUBJECT ----------
+  const startEdit = (subject) => {
+    setEditingId(subject.subjectId);
+    setEditData({
+      subjectName: subject.subjectName,
+    });
+  };
 
-      {/* Add Subject */}
-      <div className="flex mb-6 space-x-2">
+  const handleEditChange = (e) => {
+    setEditData({
+      ...editData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const saveEdit = async (id) => {
+    try {
+      await updateSubject(id, editData);
+      setEditingId(null);
+      loadSubjects();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-6">Subjects Management</h1>
+      {error && <p className="text-red-600 mb-4">{error}</p>}
+
+      {/* ---------- ADD SUBJECT FORM ---------- */}
+      <form
+        onSubmit={handleAddSubject}
+        className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
+      >
         <input
-          type="text"
-          placeholder="Enter new subject name"
-          value={newSubjectName}
-          onChange={(e) => setNewSubjectName(e.target.value)}
-          className="border rounded px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          name="subjectName"
+          placeholder="Subject Name"
+          value={addingSubject.subjectName}
+          onChange={handleAddChange}
+          className="border p-2 rounded"
+          required
         />
+
         <button
-          onClick={handleAdd}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded md:col-span-2"
         >
           Add Subject
         </button>
-      </div>
+      </form>
 
-      {/* Subjects Table */}
-      <table className="min-w-full bg-white border rounded shadow">
-        <thead>
-          <tr className="bg-gray-100 text-left">
-            <th className="px-4 py-2 border">ID</th>
-            <th className="px-4 py-2 border">Name</th>
-            <th className="px-4 py-2 border">Actions</th>
+      {/* ---------- SUBJECTS TABLE ---------- */}
+      <table className="min-w-full border">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="border p-2">ID</th>
+            <th className="border p-2">Subject Name</th>
+            <th className="border p-2">Actions</th>
           </tr>
         </thead>
         <tbody>
           {subjects.map((subject) => (
-            <tr key={subject.subjectId} className="hover:bg-gray-50">
-              <td className="px-4 py-2 border">{subject.subjectId}</td>
-              <td className="px-4 py-2 border">
-                {editingSubject?.subjectId === subject.subjectId ? (
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="border rounded px-2 py-1 w-full"
-                  />
-                ) : (
-                  subject.subjectName
-                )}
-              </td>
-              <td className="px-4 py-2 border space-x-2">
-                {editingSubject?.subjectId === subject.subjectId ? (
-                  <>
+            <tr key={subject.subjectId}>
+              <td className="border p-2">{subject.subjectId}</td>
+
+              {editingId === subject.subjectId ? (
+                <>
+                  <td className="border p-2">
+                    <input
+                      name="subjectName"
+                      value={editData.subjectName}
+                      onChange={handleEditChange}
+                      className="border p-1 rounded w-full"
+                    />
+                  </td>
+                  <td className="border p-2 flex gap-2 justify-center">
                     <button
-                      onClick={handleUpdate}
-                      className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                      onClick={() => saveEdit(subject.subjectId)}
+                      className="text-green-600 hover:underline"
                     >
                       Save
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="bg-gray-400 text-white px-2 py-1 rounded hover:bg-gray-500"
+                      className="text-gray-600 hover:underline"
                     >
                       Cancel
                     </button>
-                  </>
-                ) : (
-                  <>
+                  </td>
+                </>
+              ) : (
+                <>
+                  <td className="border p-2">{subject.subjectName}</td>
+                  <td className="border p-2 flex justify-center gap-2">
                     <button
                       onClick={() => startEdit(subject)}
-                      className="bg-yellow-400 text-white px-2 py-1 rounded hover:bg-yellow-500"
+                      className="text-blue-600 hover:underline"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(subject.subjectId)}
-                      className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                      className="text-red-600 hover:underline"
                     >
                       Delete
                     </button>
-                  </>
-                )}
-              </td>
+                  </td>
+                </>
+              )}
             </tr>
           ))}
+
           {subjects.length === 0 && (
             <tr>
-              <td colSpan="3" className="text-center px-4 py-4 text-gray-500">
+              <td colSpan="3" className="text-center p-4 text-gray-500">
                 No subjects found.
               </td>
             </tr>

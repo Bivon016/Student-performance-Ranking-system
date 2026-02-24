@@ -11,8 +11,14 @@ import java.util.List;
 
 public interface Marksrepo extends JpaRepository<Marks, Long> {
 
-    // ✅ Used by MarksService to prevent duplicates
+    // ✅ Prevent duplicate marks
     boolean existsByStudentAndSubject(Students student, Subjects subject);
+
+    // ✅ View marks by student
+    List<Marks> findByStudent(Students student);
+
+    // ✅ View marks by subject
+    List<Marks> findBySubject(Subjects subject);
 
     // ✅ Ranking totals by form
     @Query("""

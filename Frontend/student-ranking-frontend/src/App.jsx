@@ -34,6 +34,9 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="students" element={<Students />} />
           <Route path="marks" element={<Marks />} />
+          <Route path="marks/add" element={<Marks />} />
+          <Route path="marks/view" element={<Marks />} />
+          <Route path="marks/edit" element={<Marks />} />
           <Route path="subjects" element={<Subjects />} />
           <Route path="rankings" element={<Rankings />} />
           <Route path="settings" element={<Settings />} />
@@ -41,9 +44,6 @@ function App() {
           <Route path="pending-reviews" element={<PendingReviews />} />
 
           {/* Optional nested routes */}
-          <Route path="marks/add" element={<Marks />} />
-          <Route path="marks/view" element={<Marks />} />
-          <Route path="marks/edit" element={<Marks />} />
           <Route path="rankings/generate" element={<Rankings />} />
           <Route path="rankings/export" element={<Rankings />} />
         </Route>

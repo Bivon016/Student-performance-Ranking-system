@@ -1,9 +1,7 @@
 package com.gradingSystem.GraadingSystem.model;
 
 import jakarta.persistence.*;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor
 @Entity
 @Table(name = "marks")
 public class Marks {
@@ -24,7 +22,11 @@ public class Marks {
     @JoinColumn(name = "subject_id", referencedColumnName = "subject_id", nullable = false)
     private Subjects subject;
 
-    // Constructor for service to use
+    // ✅ Explicit default constructor required by Hibernate
+    public Marks() {
+    }
+
+    // Constructor for service / convenience
     public Marks(int marksValue, Students student, Subjects subject) {
         this.marksValue = marksValue;
         this.student = student;

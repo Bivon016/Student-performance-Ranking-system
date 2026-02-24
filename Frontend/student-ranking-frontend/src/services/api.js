@@ -7,11 +7,10 @@ const SUBJECTS_BASE = "http://localhost:8080/subjects";
 // ------------------ STUDENTS ------------------
 
 export async function getAllStudents() {
-  const res = await apiFetch(`${STUDENTS_BASE}/allstudents`);
+  const res = await apiFetch(`${STUDENTS_BASE}/allstudents?t=${Date.now()}`);
   if (!res.ok) throw new Error("Failed to fetch students");
   return res.json();
 }
-
 export async function addStudent(student) {
   const res = await apiFetch(`${STUDENTS_BASE}/add`, {
     method: "POST",
@@ -48,11 +47,57 @@ export async function addMarksBatch(payload) {
   return res.json();
 }
 
+export async function getMarksBySubject(subjectId) {
+  const res = await apiFetch(
+    `http://localhost:8080/marks/subject/${subjectId}`
+  );
+
+  if (!res.ok) throw new Error("Failed to fetch marks by subject");
+
+  return res.json();
+}
+
+export async function getMarksByStudent(studentId) {
+  const res = await apiFetch(
+    `http://localhost:8080/marks/student/${studentId}`
+  );
+
+  if (!res.ok) throw new Error("Failed to fetch marks by student");
+
+  return res.json();
+}
+
+export async function updateMarks(markId, marksValue) {
+  const res = await apiFetch(
+    `http://localhost:8080/marks/update/${markId}?marksValue=${marksValue}`,
+    {
+      method: "PUT",
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to update marks");
+
+  return res.json();
+}
+
+export async function deleteMarks(markId) {
+  const res = await apiFetch(
+    `http://localhost:8080/marks/delete/${markId}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to delete marks");
+
+  return true;
+}
+
 // ------------------ SUBJECTS ------------------
 
 // Get all subjects
 export async function getAllSubjects() {
-  const res = await apiFetch(`${SUBJECTS_BASE}/allsub`);
+  const res = await apiFetch(`${SUBJECTS_BASE}/allSubjects`);
   if (!res.ok) throw new Error("Failed to fetch subjects");
   return res.json();
 }
