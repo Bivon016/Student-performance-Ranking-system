@@ -1,14 +1,11 @@
 package com.gradingSystem.GraadingSystem.model;
 
-
 import jakarta.persistence.*;
-
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor
 @Entity
 public class Students {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -17,15 +14,14 @@ public class Students {
     @Column(name = "first_name", nullable = false)
     private String firstName;
 
-
     @Column(name = "second_name")
     private String secondName;
 
     @Column(name = "gender", nullable = false)
     private String gender;
 
-    @Column(name = "form")
-    private int form;
+    @Column(name = "class_id")
+    private Long classId;
 
     public Long getId() {
         return id;
@@ -59,12 +55,12 @@ public class Students {
         this.gender = gender;
     }
 
-    public int getForm() {
-        return form;
+    public Long getClassId() {
+        return classId;
     }
 
-    public void setForm(int form) {
-        this.form = form;
+    public void setClassId(Long classId) {
+        this.classId = classId;
     }
 
     @Override
@@ -74,7 +70,7 @@ public class Students {
                 ", firstName='" + firstName + '\'' +
                 ", secondName='" + secondName + '\'' +
                 ", gender='" + gender + '\'' +
-                ", form=" + form +
+                ", classId=" + classId +
                 '}';
     }
 }

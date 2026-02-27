@@ -7,18 +7,22 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  BookOpen
-} from 'lucide-react'; // <-- added BookOpen for subjects
+  BookOpen,
+  FileText,
+  Calendar
+} from 'lucide-react';
 
 const Sidebar = () => {
   const location = useLocation();
   
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: <Home size={20} /> },
-    { path: '/students', label: 'Students', icon: <Users size={20} /> },
-    { path: '/subjects', label: 'Subjects', icon: <BookOpen size={20} /> }, // <-- new
-    { path: '/rankings', label: 'Rankings', icon: <TrendingUp size={20} /> },
-    { path: '/analytics', label: 'Analytics', icon: <BarChart3 size={20} /> },
+    { path: '/',         label: 'Dashboard', icon: <Home size={20} />      },
+    { path: '/students', label: 'Students',  icon: <Users size={20} />     },
+    { path: '/subjects', label: 'Subjects',  icon: <BookOpen size={20} />  },
+    { path: '/exams',    label: 'Exams',     icon: <Calendar size={20} />  },
+    { path: '/marks',    label: 'Marks',     icon: <FileText size={20} />  },
+    { path: '/rankings', label: 'Rankings',  icon: <TrendingUp size={20} />},
+    { path: '/analytics',label: 'Analytics', icon: <BarChart3 size={20} /> },
   ];
   
   const isActive = (path) => location.pathname === path;

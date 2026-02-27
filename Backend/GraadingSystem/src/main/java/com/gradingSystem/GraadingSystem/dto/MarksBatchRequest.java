@@ -5,43 +5,31 @@ import java.util.List;
 public class MarksBatchRequest {
 
     private Long subjectId;
+    private Long examId;        // ← NEW: which exam these marks belong to
+
     private List<StudentMarks> marks;
 
-    public Long getSubjectId() {
-        return subjectId;
-    }
+    // ── Getters & Setters ─────────────────────────────────────────────────────
 
-    public void setSubjectId(Long subjectId) {
-        this.subjectId = subjectId;
-    }
+    public Long getSubjectId()             { return subjectId; }
+    public void setSubjectId(Long id)      { this.subjectId = id; }
 
-    public List<StudentMarks> getMarks() {
-        return marks;
-    }
+    public Long getExamId()                { return examId; }
+    public void setExamId(Long examId)     { this.examId = examId; }
 
-    public void setMarks(List<StudentMarks> marks) {
-        this.marks = marks;
-    }
+    public List<StudentMarks> getMarks()          { return marks; }
+    public void setMarks(List<StudentMarks> marks){ this.marks = marks; }
 
-    // Inner DTO
+    // ── Inner class ───────────────────────────────────────────────────────────
+
     public static class StudentMarks {
         private Long studentId;
-        private int marksValue;
+        private int  marksValue;
 
-        public Long getStudentId() {
-            return studentId;
-        }
+        public Long getStudentId()           { return studentId; }
+        public void setStudentId(Long id)    { this.studentId = id; }
 
-        public void setStudentId(Long studentId) {
-            this.studentId = studentId;
-        }
-
-        public int getMarksValue() {
-            return marksValue;
-        }
-
-        public void setMarksValue(int marksValue) {
-            this.marksValue = marksValue;
-        }
+        public int  getMarksValue()          { return marksValue; }
+        public void setMarksValue(int v)     { this.marksValue = v; }
     }
 }
