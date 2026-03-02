@@ -14,7 +14,9 @@ import {
   X,
   LogOut,
   Bell,
-  Home
+  BookOpen,
+  Calendar,
+  GraduationCap,
 } from 'lucide-react';
 
 const Layout = () => {
@@ -25,7 +27,6 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Load user data on component mount
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
@@ -36,6 +37,7 @@ const Layout = () => {
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     navigate('/login');
   };
 
@@ -47,27 +49,34 @@ const Layout = () => {
       type: 'link'
     },
     {
+      title: 'Classes',          // ← NEW — sits between Dashboard and Students
+      path: '/classes',
+      icon: <GraduationCap size={20} />,
+      type: 'link'
+    },
+    {
       title: 'Students',
       path: '/students',
       icon: <Users size={20} />,
       type: 'link'
     },
-     {
-    title: 'Subjects',          // <-- added Subjects here
-    path: '/subjects',
-    icon: <FileText size={20} />, // or BookOpen
-    type: 'link'
-  },
+    {
+      title: 'Subjects',
+      path: '/subjects',
+      icon: <BookOpen size={20} />,
+      type: 'link'
+    },
+    {
+      title: 'Exams',
+      path: '/exams',
+      icon: <Calendar size={20} />,
+      type: 'link'
+    },
     {
       title: 'Marks',
       path: '/marks',
       icon: <FileText size={20} />,
-      type: 'dropdown',
-      items: [
-        { title: 'Add Marks', path: '/marks/add' },
-        { title: 'View Marks', path: '/marks/view' },
-        { title: 'Edit Marks', path: '/marks/edit' },
-      ]
+      type: 'link'
     },
     {
       title: 'Rankings',
@@ -76,8 +85,8 @@ const Layout = () => {
       type: 'dropdown',
       items: [
         { title: 'Generate Results', path: '/rankings/generate' },
-        { title: 'View Rankings', path: '/rankings' },
-        { title: 'Export Results', path: '/rankings/export' },
+        { title: 'View Rankings',    path: '/rankings'          },
+        { title: 'Export Results',   path: '/rankings/export'   },
       ]
     },
     {
@@ -90,38 +99,36 @@ const Layout = () => {
       title: 'My Profile',
       path: '/profile',
       icon: <User size={20} />,
-      type: 'link' 
+      type: 'link'
     },
     {
       title: 'System Settings',
       path: '/settings',
       icon: <Settings size={20} />,
-      type: 'link' 
+      type: 'link'
     }
   ];
 
   const isActive = (path) => {
-    if (path === '/') {
-      return location.pathname === '/';
-    }
+    if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Navbar */}
+      {/* ── Top Navbar ── */}
       <nav className="bg-white border-b border-gray-200 fixed w-full z-50">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
-            {/* Left side - Logo & Mobile menu button */}
+
+            {/* Left — Logo & mobile menu button */}
             <div className="flex items-center space-x-4">
-              <button 
+              <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="lg:hidden text-gray-600 hover:text-gray-900"
               >
                 {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
-              
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
                   <TrendingUp size={20} className="text-white" />
@@ -130,7 +137,7 @@ const Layout = () => {
               </div>
             </div>
 
-            {/* Center - Search */}
+            {/* Center — Search */}
             <div className="flex-1 max-w-2xl mx-8 hidden lg:block">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -142,7 +149,7 @@ const Layout = () => {
               </div>
             </div>
 
-            {/* Right side - Profile with dropdown */}
+            {/* Right — Profile dropdown */}
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <button
@@ -159,56 +166,49 @@ const Layout = () => {
                   <ChevronDown size={16} className="text-gray-500" />
                 </button>
 
-                {/* Profile Dropdown Menu */}
                 {isProfileOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-medium">{user?.name || 'Admin User'}</p>
                       <p className="text-xs text-gray-500">{user?.email || 'admin@studentrank.com'}</p>
                     </div>
-                    <button 
-                      onClick={() => {
-                        navigate('/profile');
-                        setIsProfileOpen(false);
-                      }}
+                    <button
+                      onClick={() => { navigate('/profile'); setIsProfileOpen(false); }}
                       className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-700"
                     >
-                      <User size={16} className="inline mr-2" />
-                      My Profile
+                      <User size={16} className="inline mr-2" />My Profile
                     </button>
-                    <button 
-                      onClick={() => {
-                        navigate('/settings');
-                        setIsProfileOpen(false);
-                      }}
+                    <button
+                      onClick={() => { navigate('/settings'); setIsProfileOpen(false); }}
                       className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-700"
                     >
-                      <Settings size={16} className="inline mr-2" />
-                      Settings
+                      <Settings size={16} className="inline mr-2" />Settings
                     </button>
                     <div className="border-t border-gray-100 mt-2 pt-2">
-                      <button 
+                      <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center"
                       >
-                        <LogOut size={16} className="mr-2" />
-                        Logout
+                        <LogOut size={16} className="mr-2" />Logout
                       </button>
                     </div>
                   </div>
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </nav>
 
-      {/* Sidebar & Main Content */}
+      {/* ── Sidebar + Main ── */}
       <div className="flex pt-16">
-        {/* Sidebar - Desktop */}
-        <aside className={`hidden lg:block w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-64px)] fixed h-full overflow-y-auto`}>
+
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:block w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-64px)] fixed h-full overflow-y-auto">
           <div className="p-6">
-            {/* User Info */}
+
+            {/* User info card */}
             <div className="mb-8 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
@@ -221,7 +221,7 @@ const Layout = () => {
               </div>
             </div>
 
-            {/* Navigation Menu */}
+            {/* Nav */}
             <nav className="space-y-1">
               {menuItems.map((item) => (
                 <div key={item.title}>
@@ -253,13 +253,11 @@ const Layout = () => {
                           {item.icon}
                           <span className="font-medium">{item.title}</span>
                         </div>
-                        {openDropdown === item.title ? (
-                          <ChevronDown size={16} />
-                        ) : (
-                          <ChevronRight size={16} />
-                        )}
+                        {openDropdown === item.title
+                          ? <ChevronDown size={16} />
+                          : <ChevronRight size={16} />}
                       </button>
-                      
+
                       {openDropdown === item.title && (
                         <div className="ml-8 mt-1 space-y-1">
                           {item.items.map((subItem) => (
@@ -283,33 +281,33 @@ const Layout = () => {
               ))}
             </nav>
 
-            {/* Logout button in sidebar */}
+            {/* Logout */}
             <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-              <button 
+              <button
                 onClick={handleLogout}
                 className="flex items-center justify-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
               >
-                <LogOut size={18} className="mr-2" />
-                Logout
+                <LogOut size={18} className="mr-2" />Logout
               </button>
             </div>
+
           </div>
         </aside>
 
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div className="lg:hidden fixed inset-0 z-40">
-            <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)}></div>
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setSidebarOpen(false)}
+            />
             <aside className="fixed left-0 top-0 h-full w-64 bg-white z-50 overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="text-xl font-bold">Menu</h2>
-                  <button onClick={() => setSidebarOpen(false)}>
-                    <X size={24} />
-                  </button>
+                  <button onClick={() => setSidebarOpen(false)}><X size={24} /></button>
                 </div>
-                
-                {/* User Info in Mobile Sidebar */}
+
                 <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
@@ -321,7 +319,7 @@ const Layout = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <nav className="space-y-1">
                   {menuItems.map((item) => (
                     <div key={item.title}>
@@ -348,13 +346,11 @@ const Layout = () => {
                               {item.icon}
                               <span className="font-medium">{item.title}</span>
                             </div>
-                            {openDropdown === item.title ? (
-                              <ChevronDown size={16} />
-                            ) : (
-                              <ChevronRight size={16} />
-                            )}
+                            {openDropdown === item.title
+                              ? <ChevronDown size={16} />
+                              : <ChevronRight size={16} />}
                           </button>
-                          
+
                           {openDropdown === item.title && (
                             <div className="ml-8 mt-1 space-y-1">
                               {item.items.map((subItem) => (
@@ -375,17 +371,12 @@ const Layout = () => {
                   ))}
                 </nav>
 
-                {/* Logout in Mobile Sidebar */}
                 <div className="mt-8">
-                  <button 
-                    onClick={() => {
-                      handleLogout();
-                      setSidebarOpen(false);
-                    }}
+                  <button
+                    onClick={() => { handleLogout(); setSidebarOpen(false); }}
                     className="flex items-center justify-center w-full px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg font-medium"
                   >
-                    <LogOut size={18} className="mr-2" />
-                    Logout
+                    <LogOut size={18} className="mr-2" />Logout
                   </button>
                 </div>
               </div>
@@ -393,13 +384,13 @@ const Layout = () => {
           </div>
         )}
 
-        {/* Main Content Area - THIS IS WHERE PAGES RENDER */}
-        <main className={`flex-1 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-64'} transition-all duration-300 w-full`}>
+        {/* Main Content */}
+        <main className="flex-1 lg:ml-64 transition-all duration-300 w-full">
           <div className="p-6">
-            {/* Outlet renders the current page content */}
             <Outlet />
           </div>
         </main>
+
       </div>
     </div>
   );

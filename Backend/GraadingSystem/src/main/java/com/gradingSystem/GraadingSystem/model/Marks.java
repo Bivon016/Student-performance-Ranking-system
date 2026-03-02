@@ -1,9 +1,7 @@
 package com.gradingSystem.GraadingSystem.model;
 
 import jakarta.persistence.*;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor
 @Entity
 @Table(name = "marks")
 public class Marks {
@@ -24,43 +22,36 @@ public class Marks {
     @JoinColumn(name = "subject_id", referencedColumnName = "subject_id", nullable = false)
     private Subjects subject;
 
-    // Constructor for service to use
-    public Marks(int marksValue, Students student, Subjects subject) {
+    // ── NEW: link to Exam ─────────────────────────────────────────────────────
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "exam_id", referencedColumnName = "exam_id", nullable = false)
+    private Exam exam;
+
+    // ── Constructors ──────────────────────────────────────────────────────────
+
+    public Marks() {}
+
+    public Marks(int marksValue, Students student, Subjects subject, Exam exam) {
         this.marksValue = marksValue;
-        this.student = student;
-        this.subject = subject;
+        this.student    = student;
+        this.subject    = subject;
+        this.exam       = exam;
     }
 
-    // Getters and setters
-    public Long getMarksId() {
-        return marksId;
-    }
+    // ── Getters & Setters ─────────────────────────────────────────────────────
 
-    public void setMarksId(Long marksId) {
-        this.marksId = marksId;
-    }
+    public Long getMarksId()               { return marksId; }
+    public void setMarksId(Long marksId)   { this.marksId = marksId; }
 
-    public int getMarksValue() {
-        return marksValue;
-    }
+    public int getMarksValue()             { return marksValue; }
+    public void setMarksValue(int v)       { this.marksValue = v; }
 
-    public void setMarksValue(int marksValue) {
-        this.marksValue = marksValue;
-    }
+    public Students getStudent()           { return student; }
+    public void setStudent(Students s)     { this.student = s; }
 
-    public Students getStudent() {
-        return student;
-    }
+    public Subjects getSubject()           { return subject; }
+    public void setSubject(Subjects s)     { this.subject = s; }
 
-    public void setStudent(Students student) {
-        this.student = student;
-    }
-
-    public Subjects getSubject() {
-        return subject;
-    }
-
-    public void setSubject(Subjects subject) {
-        this.subject = subject;
-    }
+    public Exam getExam()                  { return exam; }
+    public void setExam(Exam exam)         { this.exam = exam; }
 }

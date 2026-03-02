@@ -16,7 +16,7 @@ public class SubjectsController {
     private SubjectsService subjectsService;
 
     // ---------- ADD SUBJECT ----------
-    @PostMapping("/add")
+    @PostMapping("/addSubjects")
     public Subjects addSubject(@RequestBody Subjects subject) {
         return subjectsService.addSubject(subject);
     }
@@ -28,7 +28,7 @@ public class SubjectsController {
     }
 
     // ---------- VIEW ALL SUBJECTS ----------
-    @GetMapping("/allsub")
+    @GetMapping("/allSubjects")
     public List<Subjects> viewAllSubjects() {
         return subjectsService.viewAllSubjects();
     }

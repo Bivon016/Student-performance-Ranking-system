@@ -1,25 +1,16 @@
 package com.gradingSystem.GraadingSystem.dataStructures;
 
+import com.gradingSystem.GraadingSystem.dto.StudentResultDTO;
+
 public class StudentRankNode {
-    private Long studentId;
-    private String studentName;
-    private int totalMarks;
+    private StudentResultDTO resultDTO;
+    private double totalMarks;
 
-    public StudentRankNode(Long studentId, String studentName, int totalMarks) {
-        this.studentId = studentId;
-        this.studentName = studentName;
-        this.totalMarks = totalMarks;
+    public StudentRankNode(StudentResultDTO resultDTO) {
+        this.resultDTO  = resultDTO;
+        this.totalMarks = resultDTO.getTotalMarks();
     }
 
-    public Long getStudentId() {
-        return studentId;
-    }
-
-    public String getStudentName() {
-        return studentName;
-    }
-
-    public int getTotalMarks() {
-        return totalMarks;
-    }
+    public double          getTotalMarks() { return totalMarks; }
+    public StudentResultDTO getResultDTO() { return resultDTO; }
 }
