@@ -34,7 +34,11 @@ public class SecurityConfiguration {
                   .cors(Customizer.withDefaults())   // ✅ ENABLE CORS
                   .csrf(csrf -> csrf.disable())
                   .authorizeHttpRequests(auth -> auth
-                          .requestMatchers("/auth/**", "/public/**").permitAll()  // ✅ FIX PATH
+                          .requestMatchers("/auth/**",
+                                  "/public/**",
+                                  "/ranking/**",
+                                  "/classes/**",
+                                  "/students/**" ).permitAll()
                           .anyRequest().authenticated()
                   )
                   .sessionManagement(session ->

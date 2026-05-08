@@ -20,14 +20,15 @@ import java.util.List;
 @Service
 public class MarksService {
 
-    @Autowired private Marksrepo   marksrepo;
-    @Autowired private StudentRepo studentRepo;
-    @Autowired private SubjectRepo subjectRepo;
-    @Autowired private ExamRepo    examRepo;
+    @Autowired
+    private Marksrepo   marksrepo;
+    @Autowired
+    private StudentRepo studentRepo;
+    @Autowired private
+    SubjectRepo subjectRepo;
+    @Autowired private
+    ExamRepo    examRepo;
 
-    // =====================================================
-    // ADD MARKS (Batch) — exam-aware
-    // =====================================================
     @Transactional
     public List<MarksResponseDTO> addMarksForManyStudents(MarksBatchRequest request) {
 
@@ -111,20 +112,17 @@ public class MarksService {
         marksrepo.delete(marks);
     }
 
-    // =====================================================
-    // CONVERTER — null-safe for legacy rows without an exam
-    // =====================================================
     private MarksResponseDTO convertToDTO(Marks m) {
-        // Safely resolve the Hibernate proxy — old rows may have exam_id = 0 or NULL
+
         Exam exam = null;
         try {
             exam = m.getExam();
-            if (exam != null) exam.getExamId(); // force proxy initialization
+            if (exam != null) exam.getExamId();
         } catch (Exception e) {
-            exam = null; // legacy row — exam doesn't exist in DB, skip gracefully
+            exam = null;
         }
 
-        return new MarksResponseDTO(
+        MarksResponseDTO dto = new MarksResponseDTO(
                 m.getMarksId(),
                 m.getMarksValue(),
                 m.getStudent().getId(),
@@ -136,5 +134,17 @@ public class MarksService {
                 exam != null ? exam.getExamDate() : null,
                 exam != null ? exam.getForm()     : 0
         );
+
+        dto.setGradePoint(calculateGradePoint(m.getMarksValue()));
+
+        return dto;
+    }
+    private int calculateGradePoint(int marks) {
+
+        if (marks >= 80) return 5;
+        else if (marks >= 70) return 4;
+        else if (marks >= 60) return 3;
+        else if (marks >= 40) return 2;
+        else return 1;
     }
 }

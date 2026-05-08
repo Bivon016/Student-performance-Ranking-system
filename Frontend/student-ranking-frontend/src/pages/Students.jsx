@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { getAllStudents, addStudent, deleteStudent, updateStudent, getAllClasses } from "../services/api";
 import {
   Users, Plus, Edit, Trash2, X, Save,
-  Search, CheckCircle, GraduationCap,
+  Search, CheckCircle, GraduationCap, UserPlus,
 } from "lucide-react";
+import BatchAddStudents from "./BatchAddStudents";
 
 const GENDER_OPTIONS = ["Male", "Female"];
 
@@ -28,6 +29,7 @@ const Students = () => {
   const [error,     setError]     = useState(null);
 
   const [showForm,  setShowForm]  = useState(false);
+  const [showBatch, setShowBatch] = useState(false);   // ✅ moved inside component
   const [editingId, setEditingId] = useState(null);
   const [formData,  setFormData]  = useState(emptyStudent);
   const [saving,    setSaving]    = useState(false);
@@ -37,7 +39,7 @@ const Students = () => {
   const [filterClass,  setFilterClass]  = useState("all");
   const [filterGender, setFilterGender] = useState("all");
 
-  // ── Load ─────────────────────────────────────────────────────────────────────
+  // ── Load ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([getAllStudents(), getAllClasses()])
       .then(([s, c]) => { setStudents(s); setClasses(c); })
@@ -51,29 +53,34 @@ const Students = () => {
     return () => clearTimeout(t);
   }, [justAdded]);
 
-  // ── Derived ───────────────────────────────────────────────────────────────────
-  // Map classId → full class object for easy lookup
+  // ── Derived ───────────────────────────────────────────────────────────────
   const classMap = classes.reduce((acc, c) => {
     acc[c.classId] = c;
     return acc;
   }, {});
 
-  // Count students per class
   const classCounts = classes.reduce((acc, c) => {
     acc[c.classId] = students.filter((s) => s.classId === c.classId).length;
     return acc;
   }, {});
 
   const filtered = students.filter((s) => {
-    const name = `${s.firstName} ${s.secondName}`.toLowerCase();
+    const name        = `${s.firstName} ${s.secondName}`.toLowerCase();
     const matchSearch = name.includes(search.toLowerCase()) || String(s.id).includes(search);
     const matchClass  = filterClass  === "all" || String(s.classId) === filterClass;
     const matchGender = filterGender === "all" || s.gender === filterGender;
     return matchSearch && matchClass && matchGender;
   });
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
-  const openAdd = () => { setFormData(emptyStudent); setEditingId(null); setShowForm(true); setError(null); };
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const fetchStudents = async () => {        // ✅ named helper for refreshing
+    const updated = await getAllStudents();
+    setStudents(updated);
+  };
+
+  const openAdd = () => {
+    setFormData(emptyStudent); setEditingId(null); setShowForm(true); setError(null);
+  };
 
   const openEdit = (student) => {
     setFormData({
@@ -87,7 +94,9 @@ const Students = () => {
     setError(null);
   };
 
-  const closeForm = () => { setShowForm(false); setEditingId(null); setFormData(emptyStudent); };
+  const closeForm = () => {
+    setShowForm(false); setEditingId(null); setFormData(emptyStudent);
+  };
 
   const handleSave = async () => {
     const { firstName, secondName, classId, gender } = formData;
@@ -102,8 +111,7 @@ const Students = () => {
         await addStudent({ firstName, secondName, classId: Number(classId), gender });
         setJustAdded(`${firstName} ${secondName}`);
       }
-      const updated = await getAllStudents();
-      setStudents(updated);
+      await fetchStudents();
       closeForm();
     } catch (err) {
       setError(err.message);
@@ -123,7 +131,11 @@ const Students = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><p className="text-gray-500 text-lg">Loading…</p></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500 text-lg">Loading…</p>
+      </div>
+    );
   }
 
   return (
@@ -143,11 +155,28 @@ const Students = () => {
           <h1 className="text-2xl font-bold text-gray-800">Students</h1>
           <p className="text-gray-600">Manage student enrolment across all classes</p>
         </div>
-        <button onClick={openAdd}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700">
-          <Plus size={18} /><span>Admit Student</span>
-        </button>
+        {/* ✅ Both buttons properly placed inside the component JSX */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowBatch(true)}
+            className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2.5 rounded-lg hover:bg-blue-50 text-sm font-medium">
+            <UserPlus size={16} />Add Multiple
+          </button>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 text-sm font-medium">
+            <Plus size={18} />Admit Student
+          </button>
+        </div>
       </div>
+
+      {/* Batch modal */}
+      {showBatch && (
+        <BatchAddStudents
+          onClose={() => setShowBatch(false)}
+          onSuccess={async () => { await fetchStudents(); setShowBatch(false); }}
+        />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -181,7 +210,9 @@ const Students = () => {
               <GraduationCap size={22} className="text-blue-600" />
               {editingId ? "Edit Student" : "Admit New Student"}
             </h2>
-            <button onClick={closeForm} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+            <button onClick={closeForm} className="text-gray-400 hover:text-gray-600">
+              <X size={24} />
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -202,7 +233,6 @@ const Students = () => {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
 
-            {/* Class — dynamic from Classes API */}
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Admit to Class *
@@ -231,7 +261,6 @@ const Students = () => {
               )}
             </div>
 
-            {/* Gender */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
               <div className="grid grid-cols-2 gap-2">
@@ -273,7 +302,9 @@ const Students = () => {
 
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={closeForm}
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancel</button>
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+              Cancel
+            </button>
             <button onClick={handleSave} disabled={saving}
               className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
               <Save size={16} />
@@ -383,10 +414,14 @@ const Students = () => {
           <div className="text-center py-14">
             <Users className="h-12 w-12 text-gray-200 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">
-              {search || filterClass !== "all" || filterGender !== "all" ? "No students match your filters" : "No students yet"}
+              {search || filterClass !== "all" || filterGender !== "all"
+                ? "No students match your filters"
+                : "No students yet"}
             </p>
             <p className="text-gray-400 text-sm mb-4">
-              {search || filterClass !== "all" || filterGender !== "all" ? "Try adjusting your search or filters" : "Admit the first student to get started"}
+              {search || filterClass !== "all" || filterGender !== "all"
+                ? "Try adjusting your search or filters"
+                : "Admit the first student to get started"}
             </p>
             {!search && filterClass === "all" && filterGender === "all" && (
               <button onClick={openAdd}

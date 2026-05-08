@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { getAllClasses, getAllExams } from "../services/api";
+import { getAllClasses, getResults } from "../services/api";
+import * as XLSX from "xlsx";
 import {
   Trophy, AlertTriangle, CheckCircle, ChevronDown,
   ChevronUp, Search, BarChart, Users, BookOpen,
-  Zap, X, RefreshCw, ArrowUpDown,
+  Zap, RefreshCw, Download,
 } from "lucide-react";
 
 const EXAM_TYPES = [
@@ -16,9 +17,9 @@ const EXAM_TYPES = [
 ];
 
 const RANK_COLORS = [
-  "bg-yellow-100 text-yellow-800 border-yellow-300",  // 1st
-  "bg-gray-100   text-gray-700   border-gray-300",    // 2nd
-  "bg-orange-100 text-orange-700 border-orange-300",  // 3rd
+  "bg-yellow-100 text-yellow-800 border-yellow-300",
+  "bg-gray-100   text-gray-700   border-gray-300",
+  "bg-orange-100 text-orange-700 border-orange-300",
 ];
 
 const getRankColor = (rank) => RANK_COLORS[rank - 1] ?? "bg-white text-gray-700 border-gray-200";
@@ -31,46 +32,53 @@ const getRankIcon = (rank) => {
 };
 
 const getGradeColor = (val) => {
-  if (val == null)  return "bg-red-100 text-red-600";
-  if (val >= 90)    return "bg-green-100 text-green-800";
-  if (val >= 80)    return "bg-blue-100 text-blue-800";
-  if (val >= 70)    return "bg-yellow-100 text-yellow-800";
-  if (val >= 60)    return "bg-orange-100 text-orange-800";
-  return                   "bg-red-100 text-red-800";
+  if (val == null) return "bg-red-100 text-red-600";
+  if (val >= 90)   return "bg-green-100 text-green-800";
+  if (val >= 80)   return "bg-blue-100 text-blue-800";
+  if (val >= 70)   return "bg-yellow-100 text-yellow-800";
+  if (val >= 60)   return "bg-orange-100 text-orange-800";
+  return                  "bg-red-100 text-red-800";
 };
 
-// ── API call (not in api.js yet — inline here) ────────────────────────────────
-async function fetchResults(classIds, examType) {
-  const params = new URLSearchParams();
-  classIds.forEach((id) => params.append("classIds", id));
-  params.append("examType", examType);
-  const res = await fetch(`http://localhost:8080/ranking/results?${params.toString()}`);
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || "Failed to generate results");
-  }
-  return res.json();
-}
+// Mirror of backend calculateGradePoint
+const calcGradePoint = (marks) => {
+  if (marks == null) return null;
+  if (marks >= 80) return 5;
+  if (marks >= 70) return 4;
+  if (marks >= 60) return 3;
+  if (marks >= 40) return 2;
+  return 1;
+};
+
+const getGradePointColor = (pt) => {
+  if (pt === 5) return "bg-green-100 text-green-700";
+  if (pt === 4) return "bg-blue-100 text-blue-700";
+  if (pt === 3) return "bg-yellow-100 text-yellow-700";
+  if (pt === 2) return "bg-orange-100 text-orange-700";
+  if (pt === 1) return "bg-red-100 text-red-700";
+  return "bg-gray-100 text-gray-400";
+};
+
+// Sum grade points across all subjects for one student
+const calcTotalPoints = (student, subjectNames) =>
+  subjectNames.reduce((sum, subj) => {
+    const val = student.subjectMarks?.[subj];
+    const gp  = calcGradePoint(val);
+    return sum + (gp ?? 0);
+  }, 0);
 
 const Results = () => {
-  const [loading,   setLoading]   = useState(true);
-  const [classes,   setClasses]   = useState([]);
-  const [error,     setError]     = useState(null);
-
-  // ── Selection state ───────────────────────────────────────────────────────
+  const [loading,          setLoading]          = useState(true);
+  const [classes,          setClasses]          = useState([]);
+  const [error,            setError]            = useState(null);
   const [selectedClassIds, setSelectedClassIds] = useState([]);
   const [examType,         setExamType]         = useState("");
+  const [results,          setResults]          = useState(null);
+  const [generating,       setGenerating]       = useState(false);
+  const [genError,         setGenError]         = useState(null);
+  const [search,           setSearch]           = useState("");
+  const [showIssues,       setShowIssues]       = useState(false);
 
-  // ── Results state ─────────────────────────────────────────────────────────
-  const [results,    setResults]    = useState(null);
-  const [generating, setGenerating] = useState(false);
-  const [genError,   setGenError]   = useState(null);
-
-  // ── Table state ───────────────────────────────────────────────────────────
-  const [search,     setSearch]     = useState("");
-  const [showIssues, setShowIssues] = useState(false);
-
-  // ── Load classes ──────────────────────────────────────────────────────────
   useEffect(() => {
     getAllClasses()
       .then(setClasses)
@@ -78,15 +86,26 @@ const Results = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Derived: group classes by formNumber ──────────────────────────────────
+  // ── Group classes by formNumber ───────────────────────────────────────────
   const formGroups = classes.reduce((acc, c) => {
     const f = c.formNumber;
     if (!acc[f]) acc[f] = [];
     acc[f].push(c);
     return acc;
   }, {});
-
   const sortedForms = Object.keys(formGroups).map(Number).sort((a, b) => a - b);
+
+  // ── Normalise API response field names ────────────────────────────────────
+  const subjectNames = results?.subjectNames ?? results?.subjects ?? [];
+  const studentList  = results?.students     ?? [];
+  const subjectAvgs  = results?.subjectAverages ?? {};
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const filteredStudents = studentList.filter((s) =>
+    s.studentName.toLowerCase().includes(search.toLowerCase()) ||
+    String(s.studentId).includes(search)
+  );
+  const issueStudents = studentList.filter((s) => s.hasIssues);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const toggleClass = (classId) => {
@@ -99,17 +118,15 @@ const Results = () => {
   const selectAllStreams = (formNumber) => {
     const ids = formGroups[formNumber].map((c) => c.classId);
     setSelectedClassIds((prev) => {
-      const without = prev.filter((id) => !ids.includes(id));
+      const without     = prev.filter((id) => !ids.includes(id));
       const allSelected = ids.every((id) => prev.includes(id));
       return allSelected ? without : [...without, ...ids];
     });
     setResults(null);
   };
 
-  const allStreamsSelected = (formNumber) => {
-    const ids = formGroups[formNumber].map((c) => c.classId);
-    return ids.every((id) => selectedClassIds.includes(id));
-  };
+  const allStreamsSelected = (formNumber) =>
+    formGroups[formNumber].map((c) => c.classId).every((id) => selectedClassIds.includes(id));
 
   const canGenerate = selectedClassIds.length > 0 && examType;
 
@@ -119,11 +136,12 @@ const Results = () => {
     setGenError(null);
     setResults(null);
     try {
-      const data = await fetchResults(selectedClassIds, examType);
+      const data = await getResults(selectedClassIds, examType);
+      console.log("API response keys:", Object.keys(data));
       setResults(data);
       if (data.hasIssues) setShowIssues(true);
     } catch (err) {
-      setGenError(err.message);
+      setGenError(err?.response?.data || err.message || "Failed to generate results.");
     } finally {
       setGenerating(false);
     }
@@ -138,17 +156,59 @@ const Results = () => {
     setShowIssues(false);
   };
 
-  // ── Filter results ────────────────────────────────────────────────────────
-  const filteredStudents = results
-    ? results.students.filter((s) =>
-        s.studentName.toLowerCase().includes(search.toLowerCase()) ||
-        String(s.studentId).includes(search)
-      )
-    : [];
+  // ── Excel Export ──────────────────────────────────────────────────────────
+  const handleExportExcel = () => {
+    if (!results) return;
 
-  const issueStudents = results
-    ? results.students.filter((s) => s.hasIssues)
-    : [];
+    const examLabel = EXAM_TYPES.find((e) => e.value === examType)?.label ?? examType;
+
+    // Build rows
+    const rows = filteredStudents.map((student) => {
+      const row = {
+        Rank:    student.rank,
+        Student: student.studentName,
+        Class:   student.className,
+      };
+
+      let totalPoints = 0;
+      subjectNames.forEach((subj) => {
+        const val = student.subjectMarks?.[subj];
+        const gp  = calcGradePoint(val);
+        row[subj]              = val ?? "—";
+        row[`${subj} (GP)`]   = gp  ?? "—";
+        totalPoints += gp ?? 0;
+      });
+
+      row["Total Marks"]  = student.totalMarks;
+      row["Total Points"] = totalPoints;
+
+      return row;
+    });
+
+    // Averages row
+    const avgRow = { Rank: "", Student: "Class Average", Class: "" };
+    subjectNames.forEach((subj) => {
+      avgRow[subj]            = subjectAvgs[subj] ?? "—";
+      avgRow[`${subj} (GP)`] = calcGradePoint(subjectAvgs[subj]) ?? "—";
+    });
+    avgRow["Total Marks"]  = results.overallAverage;
+    avgRow["Total Points"] = "";
+    rows.push(avgRow);
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Column widths
+    const colWidths = Object.keys(rows[0] ?? {}).map((k) => ({
+      wch: Math.max(k.length, 12),
+    }));
+    ws["!cols"] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Results");
+
+    const fileName = `Results_${examLabel.replace(/\s+/g, "_")}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
 
   if (loading) {
     return (
@@ -167,12 +227,20 @@ const Results = () => {
           <h1 className="text-2xl font-bold text-gray-800">Generate Results</h1>
           <p className="text-gray-600">Select classes and exam type to generate ranked results</p>
         </div>
-        {results && (
-          <button onClick={handleReset}
-            className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-            <RefreshCw size={16} /><span>New Results</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {results && (
+            <>
+              <button onClick={handleExportExcel}
+                className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
+                <Download size={16} />Export Excel
+              </button>
+              <button onClick={handleReset}
+                className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+                <RefreshCw size={16} />New Results
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -183,7 +251,7 @@ const Results = () => {
       {!results && (
         <div className="bg-white rounded-xl shadow-sm border p-6 space-y-6">
 
-          {/* Class selector */}
+          {/* Step 1 — Class selector */}
           <div>
             <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
               Step 1 — Select Class(es)
@@ -226,7 +294,7 @@ const Results = () => {
             </div>
           </div>
 
-          {/* Exam type selector */}
+          {/* Step 2 — Exam type */}
           <div>
             <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
               Step 2 — Select Exam Type
@@ -249,7 +317,7 @@ const Results = () => {
 
           {/* Summary + Generate */}
           <div className="flex items-center justify-between pt-2 border-t">
-            <div className="text-sm text-gray-500 space-y-1">
+            <div className="text-sm space-y-1">
               {selectedClassIds.length > 0 ? (
                 <p className="text-blue-700 font-medium">
                   ✓ {selectedClassIds.length} class{selectedClassIds.length > 1 ? "es" : ""} selected
@@ -292,14 +360,14 @@ const Results = () => {
             <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Students Ranked</p>
-                <p className="text-2xl font-bold mt-1">{results.students.length}</p>
+                <p className="text-2xl font-bold mt-1">{studentList.length}</p>
               </div>
               <Users className="h-8 w-8 text-blue-500" />
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Subjects</p>
-                <p className="text-2xl font-bold mt-1">{results.subjects.length}</p>
+                <p className="text-2xl font-bold mt-1">{subjectNames.length}</p>
               </div>
               <BookOpen className="h-8 w-8 text-green-500" />
             </div>
@@ -323,7 +391,7 @@ const Results = () => {
               </div>
               {results.hasIssues
                 ? <AlertTriangle className="h-8 w-8 text-red-500" />
-                : <CheckCircle className="h-8 w-8 text-green-500" />
+                : <CheckCircle   className="h-8 w-8 text-green-500" />
               }
             </div>
           </div>
@@ -339,7 +407,7 @@ const Results = () => {
                       {issueStudents.length} student{issueStudents.length > 1 ? "s have" : " has"} missing marks
                     </p>
                     <p className="text-xs text-red-600 mt-0.5">
-                      Results include these students but their totals are incomplete. Go to Marks to fill missing data.
+                      Results include these students but their totals are incomplete.
                     </p>
                   </div>
                 </div>
@@ -350,7 +418,6 @@ const Results = () => {
                   {showIssues ? "Hide" : "Show"} Issues
                 </button>
               </div>
-
               {showIssues && (
                 <div className="mt-4 space-y-2">
                   {issueStudents.map((s) => (
@@ -361,7 +428,7 @@ const Results = () => {
                         <span className="ml-2 text-xs text-gray-500">({s.className})</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        {s.missingSubjects.map((subj) => (
+                        {(s.missingSubjects ?? []).map((subj) => (
                           <span key={`miss-${s.studentId}-${subj}`}
                             className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-medium">
                             Missing: {subj}
@@ -384,7 +451,7 @@ const Results = () => {
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <span className="text-sm text-gray-500">
-              {filteredStudents.length} of {results.students.length} students
+              {filteredStudents.length} of {studentList.length} students
             </span>
           </div>
 
@@ -394,99 +461,149 @@ const Results = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase sticky left-0 bg-gray-50">Rank</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase sticky left-12 bg-gray-50">Student</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
-                    {results.subjects.map((subj) => (
-                      <th key={`th-${subj}`} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    {subjectNames.map((subj) => (
+                      <th key={`th-${subj}`}
+                        className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap"
+                        colSpan={2}>
                         {subj}
                       </th>
                     ))}
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-blue-50">Total</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-blue-50">Total Marks</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-purple-50">Total Points</th>
+                  </tr>
+                  {/* Sub-header row */}
+                  <tr className="bg-gray-100 border-t border-gray-200">
+                    <th colSpan={3} />
+                    {subjectNames.map((subj) => (
+                      <React.Fragment key={`sub-th-${subj}`}>
+                        <th className="px-3 py-1.5 text-center text-xs text-gray-400 font-medium">Marks</th>
+                        <th className="px-3 py-1.5 text-center text-xs text-gray-400 font-medium">GP</th>
+                      </React.Fragment>
+                    ))}
+                    <th className="bg-blue-50" />
+                    <th className="bg-purple-50" />
                   </tr>
                 </thead>
+
                 <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredStudents.map((student) => {
+                    const totalPoints = calcTotalPoints(student, subjectNames);
+                    return (
+                      <tr key={`result-${student.studentId}`}
+                        className={`transition-colors ${
+                          student.hasIssues ? "bg-red-50 hover:bg-red-100" : "hover:bg-gray-50"
+                        }`}>
 
-                  {filteredStudents.map((student) => (
-                    <tr key={`result-${student.studentId}`}
-                      className={`transition-colors ${
-                        student.hasIssues ? "bg-red-50 hover:bg-red-100" : "hover:bg-gray-50"
-                      }`}>
+                        {/* Rank */}
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold border ${getRankColor(student.rank)}`}>
+                            {getRankIcon(student.rank)}
+                          </span>
+                        </td>
 
-                      {/* Rank */}
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold border ${getRankColor(student.rank)}`}>
-                          {getRankIcon(student.rank)}
-                        </span>
-                      </td>
-
-                      {/* Student */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {student.hasIssues && (
-                            <AlertTriangle size={14} className="text-red-500 shrink-0" />
-                          )}
-                          <div>
-                            <div className="font-semibold text-gray-900 whitespace-nowrap">{student.studentName}</div>
-                            <div className="text-xs text-gray-400">ID #{student.studentId}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Class */}
-                      <td className="px-4 py-3">
-                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full whitespace-nowrap">
-                          {student.className}
-                        </span>
-                      </td>
-
-                      {/* Per-subject marks */}
-                      {results.subjects.map((subj) => {
-                        const val = student.subjectMarks[subj];
-                        return (
-                          <td key={`mark-${student.studentId}-${subj}`} className="px-4 py-3 text-center">
-                            {val == null ? (
-                              <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-600">
-                                —
-                              </span>
-                            ) : (
-                              <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${getGradeColor(val)}`}>
-                                {val % 1 === 0 ? val : val.toFixed(1)}
-                              </span>
+                        {/* Student */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {student.hasIssues && (
+                              <AlertTriangle size={14} className="text-red-500 shrink-0" />
                             )}
-                          </td>
-                        );
-                      })}
+                            <div>
+                              <div className="font-semibold text-gray-900 whitespace-nowrap">{student.studentName}</div>
+                              <div className="text-xs text-gray-400">ID #{student.studentId}</div>
+                            </div>
+                          </div>
+                        </td>
 
-                      {/* Total */}
-                      <td className="px-4 py-3 text-center bg-blue-50">
-                        <span className="font-bold text-blue-800 text-sm">
-                          {student.totalMarks % 1 === 0 ? student.totalMarks : student.totalMarks.toFixed(1)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        {/* Class */}
+                        <td className="px-4 py-3">
+                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full whitespace-nowrap">
+                            {student.className}
+                          </span>
+                        </td>
+
+                        {/* Per-subject: marks + grade point */}
+                        {subjectNames.map((subj) => {
+                          const val = student.subjectMarks?.[subj];
+                          const gp  = calcGradePoint(val);
+                          return (
+                            <React.Fragment key={`mark-${student.studentId}-${subj}`}>
+                              {/* Marks cell */}
+                              <td className="px-3 py-3 text-center">
+                                {val == null ? (
+                                  <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-600">—</span>
+                                ) : (
+                                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${getGradeColor(val)}`}>
+                                    {val % 1 === 0 ? val : val.toFixed(1)}
+                                  </span>
+                                )}
+                              </td>
+                              {/* Grade Point cell */}
+                              <td className="px-3 py-3 text-center">
+                                {gp == null ? (
+                                  <span className="text-gray-300 text-xs">—</span>
+                                ) : (
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${getGradePointColor(gp)}`}>
+                                    {gp}
+                                  </span>
+                                )}
+                              </td>
+                            </React.Fragment>
+                          );
+                        })}
+
+                        {/* Total Marks */}
+                        <td className="px-4 py-3 text-center bg-blue-50">
+                          <span className="font-bold text-blue-800 text-sm">
+                            {student.totalMarks % 1 === 0
+                              ? student.totalMarks
+                              : student.totalMarks.toFixed(1)}
+                          </span>
+                        </td>
+
+                        {/* Total Points */}
+                        <td className="px-4 py-3 text-center bg-purple-50">
+                          <span className="font-bold text-purple-800 text-sm">{totalPoints}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
 
                   {/* Averages row */}
-                  <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
-                    <td className="px-4 py-3" colSpan={2}>
-                      <span className="text-xs text-gray-600 uppercase font-bold tracking-wide">
-                        Class Average
-                      </span>
-                    </td>
-                    <td className="px-4 py-3" />
-                    {results.subjects.map((subj) => (
-                      <td key={`avg-${subj}`} className="px-4 py-3 text-center">
-                        <span className="text-sm font-bold text-gray-700">
-                          {results.subjectAverages[subj] ?? "—"}
+                  {subjectNames.length > 0 && (
+                    <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                      <td className="px-4 py-3" colSpan={2}>
+                        <span className="text-xs text-gray-600 uppercase font-bold tracking-wide">
+                          Class Average
                         </span>
                       </td>
-                    ))}
-                    <td className="px-4 py-3 text-center bg-blue-100">
-                      <span className="font-bold text-blue-800">{results.overallAverage}</span>
-                    </td>
-                  </tr>
-
+                      <td className="px-4 py-3" />
+                      {subjectNames.map((subj) => {
+                        const avg = subjectAvgs[subj];
+                        const gp  = calcGradePoint(avg);
+                        return (
+                          <React.Fragment key={`avg-${subj}`}>
+                            <td className="px-3 py-3 text-center">
+                              <span className="text-sm font-bold text-gray-700">{avg ?? "—"}</span>
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {gp != null ? (
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${getGradePointColor(gp)}`}>
+                                  {gp}
+                                </span>
+                              ) : <span className="text-gray-300 text-xs">—</span>}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                      <td className="px-4 py-3 text-center bg-blue-100">
+                        <span className="font-bold text-blue-800">{results.overallAverage}</span>
+                      </td>
+                      <td className="px-4 py-3 bg-purple-50" />
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -498,6 +615,11 @@ const Results = () => {
               </div>
             )}
           </div>
+
+          {/* Export hint */}
+          <p className="text-xs text-gray-400 text-right">
+            Use the <strong>Export Excel</strong> button above to download these results as a spreadsheet.
+          </p>
 
         </div>
       )}

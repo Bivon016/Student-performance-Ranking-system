@@ -15,6 +15,14 @@ import {
   Trash2, Save, BarChart, Lock,
 } from "lucide-react";
 
+const getGradePoint = (marks) => {
+  if (marks >= 80) return { point: 5, color: "bg-green-100 text-green-700" };
+  if (marks >= 70) return { point: 4, color: "bg-blue-100 text-blue-700" };
+  if (marks >= 60) return { point: 3, color: "bg-yellow-100 text-yellow-700" };
+  if (marks >= 40) return { point: 2, color: "bg-orange-100 text-orange-700" };
+  return { point: 1, color: "bg-red-100 text-red-700" };
+};
+
 const EXAM_TYPE_LABELS = {
   FINAL_EXAM:  "Final Exam",
   MIDTERM:     "Midterm",
@@ -22,14 +30,6 @@ const EXAM_TYPE_LABELS = {
   ASSIGNMENT:  "Assignment",
   LAB_WORK:    "Lab Work",
   PROJECT:     "Project",
-};
-
-const calculateGrade = (v) => {
-  if (v >= 90) return { grade: "A+", color: "bg-green-100 text-green-800"  };
-  if (v >= 80) return { grade: "A",  color: "bg-blue-100 text-blue-800"    };
-  if (v >= 70) return { grade: "B",  color: "bg-yellow-100 text-yellow-800"};
-  if (v >= 60) return { grade: "C",  color: "bg-orange-100 text-orange-800"};
-  return              { grade: "F",  color: "bg-red-100 text-red-800"      };
 };
 
 const Marks = () => {
@@ -405,41 +405,57 @@ const Marks = () => {
                             <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
                             <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
                             <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
+                            <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade Point</th>
                             <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
 
-                          {filteredPending.map((s) => (
-                            <tr key={`pending-${s.id}`} className="hover:bg-gray-50">
-                              <td className="px-5 py-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                                    {s.firstName?.charAt(0)}
+                          {filteredPending.map((s) => {
+                            const inputValue = marksInput[s.id];
+                            const grade = inputValue === undefined || inputValue === ""
+                              ? null
+                              : getGradePoint(Number(inputValue));
+                            return (
+                              <tr key={`pending-${s.id}`} className="hover:bg-gray-50">
+                                <td className="px-5 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                                      {s.firstName?.charAt(0)}
+                                    </div>
+                                    <span className="font-medium text-gray-900">{s.firstName} {s.secondName}</span>
                                   </div>
-                                  <span className="font-medium text-gray-900">{s.firstName} {s.secondName}</span>
-                                </div>
-                              </td>
-                              <td className="px-5 py-3 text-gray-600 text-sm">
-                                {classMap[s.classId]?.className ?? "—"}
-                              </td>
-                              <td className="px-5 py-3">
-                                <input type="number" min="0" max="100" placeholder="0"
-                                  value={marksInput[s.id] ?? ""}
-                                  onChange={(e) => setMarksInput((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                                  className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                              </td>
-                              <td className="px-5 py-3">
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                                  Pending
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                                </td>
+                                <td className="px-5 py-3 text-gray-600 text-sm">
+                                  {classMap[s.classId]?.className ?? "—"}
+                                </td>
+                                <td className="px-5 py-3">
+                                  <input type="number" min="0" max="100" placeholder="0"
+                                    value={marksInput[s.id] ?? ""}
+                                    onChange={(e) => setMarksInput((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                                    className="w-24 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                </td>
+                                <td className="px-5 py-3">
+                                  {grade ? (
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${grade.color}`}>
+                                      {grade.point}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 text-sm">—</span>
+                                  )}
+                                </td>
+                                <td className="px-5 py-3">
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                    Pending
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
 
                           {filteredDone.map((s) => {
                             const existing = existingMarksMap[s.id];
-                            const g = calculateGrade(existing.marksValue);
+                            const grade = getGradePoint(existing.marksValue);
                             return (
                               <tr key={`done-${s.id}`} className="bg-green-50">
                                 <td className="px-5 py-3">
@@ -454,12 +470,12 @@ const Marks = () => {
                                   {classMap[s.classId]?.className ?? "—"}
                                 </td>
                                 <td className="px-5 py-3">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-gray-800">{existing.marksValue}</span>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${g.color}`}>
-                                      {g.grade}
-                                    </span>
-                                  </div>
+                                  <span className="font-bold text-gray-800">{existing.marksValue}</span>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${grade.color}`}>
+                                    {grade.point}
+                                  </span>
                                 </td>
                                 <td className="px-5 py-3">
                                   <div className="flex items-center gap-1.5">
@@ -626,14 +642,14 @@ const Marks = () => {
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
-                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
+                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade Point</th>
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
                         {filteredViewMarks.map((m) => {
-                          const g = calculateGrade(m.marksValue);
                           const isEditing = editingMark === m.marksId;
+                          const grade = getGradePoint(m.marksValue);
                           return (
                             <tr key={`view-mark-${m.marksId}`} className="hover:bg-gray-50">
                               <td className="px-5 py-3">
@@ -662,8 +678,8 @@ const Marks = () => {
                                 )}
                               </td>
                               <td className="px-5 py-3">
-                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${g.color}`}>
-                                  {g.grade}
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${grade.color}`}>
+                                  {grade.point}
                                 </span>
                               </td>
                               <td className="px-5 py-3">

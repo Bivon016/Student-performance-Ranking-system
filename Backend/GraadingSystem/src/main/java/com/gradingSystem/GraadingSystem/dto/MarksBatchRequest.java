@@ -11,8 +11,10 @@ public class MarksBatchRequest {
 
     // ── Getters & Setters ─────────────────────────────────────────────────────
 
-    public Long getSubjectId()             { return subjectId; }
-    public void setSubjectId(Long id)      { this.subjectId = id; }
+    public Long getSubjectId()             {
+        return subjectId; }
+    public void setSubjectId(Long id)      {
+        this.subjectId = id; }
 
     public Long getExamId()                { return examId; }
     public void setExamId(Long examId)     { this.examId = examId; }

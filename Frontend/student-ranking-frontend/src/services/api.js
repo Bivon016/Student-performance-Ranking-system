@@ -198,3 +198,24 @@ export async function deleteClass(classId) {
   });
   if (!res.ok) throw new Error("Failed to delete class");
 }
+const RANKING_BASE = "http://localhost:8080/ranking";
+
+export async function getResults(classIds, examType) {
+  const params = new URLSearchParams();
+  classIds.forEach((id) => params.append("classIds", id));
+  params.append("examType", examType);
+  const res = await apiFetch(`${RANKING_BASE}/results?${params.toString()}`);
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(msg || "Failed to fetch results");
+  }
+  return res.json();
+}
+export async function addStudentsBatch(students) {
+  const res = await apiFetch(`${STUDENTS_BASE}/addBatch`, {
+    method: "POST",
+    body: JSON.stringify(students),
+  });
+  if (!res.ok) throw new Error("Failed to add students");
+  return res.json();
+}

@@ -3,6 +3,7 @@ package com.gradingSystem.GraadingSystem.Controller;
 import com.gradingSystem.GraadingSystem.Service.StudentService;
 import com.gradingSystem.GraadingSystem.model.Students;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -43,5 +44,8 @@ public class StudentController {
         return studentService.updateStudents(id, students);
     }
 
-
+    @PostMapping("/addBatch")
+    public ResponseEntity<List<Students>> addBatch(@RequestBody List<Students> students) {
+        return ResponseEntity.ok(studentService.addStudentsBatch(students));
+    }
 }

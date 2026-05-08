@@ -44,4 +44,7 @@ public class StudentService {
 
         return studentRepo.save(student);
     }
+    public List<Students> addStudentsBatch(List<Students> students) {
+        return studentRepo.saveAll(students);
+    }
 }
