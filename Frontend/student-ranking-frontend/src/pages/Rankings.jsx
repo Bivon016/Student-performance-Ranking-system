@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { getAllClasses, getResults } from "../services/api";
 import * as XLSX from "xlsx";
 import {
   Trophy, AlertTriangle, CheckCircle, ChevronDown,
   ChevronUp, Search, BarChart, Users, BookOpen,
-  Zap, RefreshCw, Download,
+  Zap, RefreshCw, Download, FileText,
 } from "lucide-react";
 
 const EXAM_TYPES = [
@@ -68,6 +69,8 @@ const calcTotalPoints = (student, subjectNames) =>
   }, 0);
 
 const Results = () => {
+  const navigate = useNavigate();
+
   const [loading,          setLoading]          = useState(true);
   const [classes,          setClasses]          = useState([]);
   const [error,            setError]            = useState(null);
@@ -154,6 +157,16 @@ const Results = () => {
     setGenError(null);
     setSearch("");
     setShowIssues(false);
+  };
+
+  // ── Navigate to report card ───────────────────────────────────────────────
+  const handleViewReportCard = (student) => {
+    const params = new URLSearchParams({
+      studentId: student.studentId,
+      classIds:  selectedClassIds.join(","),
+      examType,
+    });
+    navigate(`/report-card?${params.toString()}`);
   };
 
   // ── Excel Export ──────────────────────────────────────────────────────────
@@ -473,6 +486,10 @@ const Results = () => {
                     ))}
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-blue-50">Total Marks</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-purple-50">Total Points</th>
+                    {/* ── NEW column header ── */}
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-teal-50 whitespace-nowrap">
+                      Report Card
+                    </th>
                   </tr>
                   {/* Sub-header row */}
                   <tr className="bg-gray-100 border-t border-gray-200">
@@ -485,6 +502,8 @@ const Results = () => {
                     ))}
                     <th className="bg-blue-50" />
                     <th className="bg-purple-50" />
+                    {/* ── placeholder for sub-header alignment ── */}
+                    <th className="bg-teal-50" />
                   </tr>
                 </thead>
 
@@ -567,6 +586,18 @@ const Results = () => {
                         <td className="px-4 py-3 text-center bg-purple-50">
                           <span className="font-bold text-purple-800 text-sm">{totalPoints}</span>
                         </td>
+
+                        {/* ── NEW: View Report Card button ── */}
+                        <td className="px-4 py-3 text-center bg-teal-50">
+                          <button
+                            onClick={() => handleViewReportCard(student)}
+                            title={`Open report card for ${student.studentName}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-semibold rounded-lg transition-all whitespace-nowrap shadow-sm"
+                          >
+                            <FileText size={13} />
+                            Report Card
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -602,6 +633,8 @@ const Results = () => {
                         <span className="font-bold text-blue-800">{results.overallAverage}</span>
                       </td>
                       <td className="px-4 py-3 bg-purple-50" />
+                      {/* Empty cell to keep grid aligned */}
+                      <td className="px-4 py-3 bg-teal-50" />
                     </tr>
                   )}
                 </tbody>

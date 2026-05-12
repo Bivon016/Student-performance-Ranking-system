@@ -129,8 +129,8 @@ public class RankingService {
             for (String subjectName : subjectNames) {
                 List<Double> values = marksForStudent.get(subjectName);
                 if (values == null || values.isEmpty()) {
-                    subjectTotals.put(subjectName, null);
-                    missingSubjects.add(subjectName);
+                    subjectTotals.put(subjectName, 0.0);   // treat missing as 0
+                    missingSubjects.add(subjectName);       // still flagged as missing
                 } else {
                     double sum = values.stream().mapToDouble(Double::doubleValue).sum();
                     subjectTotals.put(subjectName, sum);
@@ -165,16 +165,28 @@ public class RankingService {
             ranked.add(dto);
         }
 
-        // 12. Calculate subject averages (only over students who HAVE marks)
+        // 12. Calculate subject averages
         Map<String, Double> subjectAverages = new LinkedHashMap<>();
+
         for (String subjectName : subjectNames) {
+
             List<Double> vals = ranked.stream()
+                    .filter(s -> !s.getMissingSubjects().contains(subjectName))
                     .map(s -> s.getSubjectMarks().get(subjectName))
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
-            double avg = vals.isEmpty() ? 0.0
-                    : vals.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-            subjectAverages.put(subjectName, Math.round(avg * 100.0) / 100.0);
+
+            double avg = vals.isEmpty()
+                    ? 0.0
+                    : vals.stream()
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
+
+            subjectAverages.put(
+                    subjectName,
+                    Math.round(avg * 100.0) / 100.0
+            );
         }
 
         // 13. Overall average = average of all subject averages
