@@ -24,7 +24,7 @@ const EXAM_TYPE_COLORS = {
   PROJECT:     "bg-green-100 text-green-800",
 };
 
-const emptyForm = { subjectId: "", form: "", examType: "", examDate: "" };
+const emptyForm = { subjectId: "", form: "", classId: "", examType: "", examDate: "" };
 
 const Exams = () => {
   const [loading,  setLoading]  = useState(true);
@@ -39,6 +39,7 @@ const Exams = () => {
   const [saving,      setSaving]      = useState(false);
 
   const [bulkForms,    setBulkForms]    = useState([]);
+  const [bulkClasses,  setBulkClasses]  = useState([]);  // ✅ added
   const [bulkSubjects, setBulkSubjects] = useState([]);
   const [bulkExamType, setBulkExamType] = useState("");
   const [bulkDate,     setBulkDate]     = useState("");
@@ -59,7 +60,6 @@ const Exams = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Unique sorted form numbers from Classes
   const availableForms = [...new Set(classes.map((c) => c.formNumber))].sort((a, b) => a - b);
 
   const filteredExams = exams.filter((ex) => {
@@ -74,20 +74,27 @@ const Exams = () => {
     return matchSearch && matchSubject && matchForm && matchType;
   });
 
-  const toggleBulkForm    = (f) => setBulkForms((p)    => p.includes(f) ? p.filter((x) => x !== f) : [...p, f]);
+  const toggleBulkForm    = (f)  => setBulkForms((p)    => p.includes(f)  ? p.filter((x) => x !== f)  : [...p, f]);
   const toggleBulkSubject = (id) => setBulkSubjects((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+  const toggleBulkClass   = (id) => setBulkClasses((p)  => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
 
+  // ✅ Each combo now includes classId
   const bulkCombinations = bulkForms.flatMap((f) =>
-    bulkSubjects.map((sId) => ({
-      form: f,
-      subjectId: sId,
-      subjectName: subjects.find((s) => s.subjectId === sId)?.subjectName ?? "?",
-    }))
+    bulkSubjects.flatMap((sId) =>
+      bulkClasses.map((cId) => ({
+        form: f,
+        subjectId: sId,
+        classId: cId,
+        subjectName: subjects.find((s) => s.subjectId === sId)?.subjectName ?? "?",
+        className: classes.find((c) => c.classId === cId)?.className ?? "?",
+      }))
+    )
   );
 
   const handleBulkCreate = async () => {
     if (!bulkForms.length)    { alert("Select at least one form.");    return; }
     if (!bulkSubjects.length) { alert("Select at least one subject."); return; }
+    if (!bulkClasses.length)  { alert("Select at least one class.");   return; }  // ✅
     if (!bulkExamType)        { alert("Select an exam type.");         return; }
     if (!bulkDate)            { alert("Select a date.");               return; }
     setBulkSaving(true);
@@ -95,7 +102,13 @@ const Exams = () => {
     const newExams = [];
     for (const combo of bulkCombinations) {
       try {
-        const exam = await createExam({ subjectId: combo.subjectId, form: combo.form, examType: bulkExamType, examDate: bulkDate });
+        const exam = await createExam({
+          subjectId: combo.subjectId,
+          classId:   combo.classId,   // ✅ added
+          form:      combo.form,
+          examType:  bulkExamType,
+          examDate:  bulkDate,
+        });
         newExams.push(exam);
         created++;
       } catch { skipped++; }
@@ -106,29 +119,50 @@ const Exams = () => {
   };
 
   const resetBulk = () => {
-    setBulkForms([]); setBulkSubjects([]);
+    setBulkForms([]); setBulkSubjects([]); setBulkClasses([]);
     setBulkExamType(""); setBulkDate("");
     setBulkDone(null); setMode(null);
   };
 
   const openAdd  = () => { setFormData(emptyForm); setEditingExam(null); setMode("single"); };
   const openEdit = (exam) => {
-    setFormData({ subjectId: String(exam.subjectId), form: String(exam.form), examType: exam.examType, examDate: exam.examDate });
+    setFormData({
+      subjectId: String(exam.subjectId),
+      form:      String(exam.form),
+      classId:   String(exam.classId ?? ""),
+      examType:  exam.examType,
+      examDate:  exam.examDate,
+    });
     setEditingExam(exam); setMode("single");
   };
   const closeForm = () => { setMode(null); setEditingExam(null); setFormData(emptyForm); };
 
   const handleSave = async () => {
-    const { subjectId, form, examType, examDate } = formData;
-    if (!subjectId || !form || !examType || !examDate) { alert("Please fill all fields."); return; }
+    const { subjectId, form, classId, examType, examDate } = formData;
+    if (!subjectId || !form || !classId || !examType || !examDate) {
+      alert("Please fill all fields.");
+      return;
+    }
     setSaving(true);
     try {
       if (editingExam) {
         await deleteExam(editingExam.examId);
-        const created = await createExam({ subjectId: Number(subjectId), form: Number(form), examType, examDate });
+        const created = await createExam({
+          subjectId: Number(subjectId),
+          classId:   Number(classId),   // ✅ added
+          form:      Number(form),
+          examType,
+          examDate,
+        });
         setExams((p) => p.map((ex) => ex.examId === editingExam.examId ? created : ex));
       } else {
-        const created = await createExam({ subjectId: Number(subjectId), form: Number(form), examType, examDate });
+        const created = await createExam({
+          subjectId: Number(subjectId),
+          classId:   Number(classId),   // ✅ added
+          form:      Number(form),
+          examType,
+          examDate,
+        });
         setExams((p) => [...p, created]);
       }
       closeForm();
@@ -191,7 +225,6 @@ const Exams = () => {
         </div>
       </div>
 
-      {/* No classes warning */}
       {availableForms.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
           ⚠ No classes found. Go to the <strong>Classes</strong> page to create forms first.
@@ -206,7 +239,7 @@ const Exams = () => {
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <Zap size={20} className="text-purple-600" />Bulk Create Exams
               </h2>
-              <p className="text-sm text-gray-500 mt-1">Select forms, subjects, exam type and date</p>
+              <p className="text-sm text-gray-500 mt-1">Select forms, classes, subjects, exam type and date</p>
             </div>
             <button onClick={resetBulk} className="text-gray-500 hover:text-gray-700"><X size={24} /></button>
           </div>
@@ -228,7 +261,7 @@ const Exams = () => {
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                {/* Forms — from Classes API */}
+                {/* Forms */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-semibold text-gray-700 flex items-center gap-1"><Users size={14} />Forms *</label>
@@ -281,6 +314,32 @@ const Exams = () => {
                 </div>
               </div>
 
+              {/* Classes ✅ NEW */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Users size={14} />Classes * <span className="text-gray-400 font-normal">(pick your assigned classes)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <button onClick={() => setBulkClasses(classes.map((c) => c.classId))} className="text-xs text-blue-600 hover:underline">Select All</button>
+                    <span className="text-gray-300">|</span>
+                    <button onClick={() => setBulkClasses([])} className="text-xs text-gray-400 hover:underline">Clear</button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {classes.map((c) => (
+                    <button key={c.classId} onClick={() => toggleBulkClass(c.classId)}
+                      className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
+                        bulkClasses.includes(c.classId)
+                          ? "bg-green-600 border-green-600 text-white"
+                          : "border-gray-200 text-gray-600 hover:border-green-300"
+                      }`}>
+                      {c.className}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Subjects */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -315,7 +374,7 @@ const Exams = () => {
                   <div className="flex flex-wrap gap-2">
                     {bulkCombinations.map((c, i) => (
                       <span key={i} className="px-3 py-1 bg-white border border-purple-200 rounded-full text-xs text-purple-700 font-medium">
-                        Form {c.form} — {c.subjectName}
+                        Form {c.form} — {c.subjectName} — {c.className}
                       </span>
                     ))}
                   </div>
@@ -345,13 +404,22 @@ const Exams = () => {
             <h2 className="text-xl font-bold text-gray-800">{editingExam ? "Edit Exam" : "Add Single Exam"}</h2>
             <button onClick={closeForm} className="text-gray-500 hover:text-gray-700"><X size={24} /></button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2"><BookOpen size={14} className="inline mr-1" />Subject *</label>
               <select value={formData.subjectId} onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Select Subject</option>
                 {subjects.map((sub) => <option key={sub.subjectId} value={sub.subjectId}>{sub.subjectName}</option>)}
+              </select>
+            </div>
+            {/* ✅ Class dropdown added */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2"><Users size={14} className="inline mr-1" />Class *</label>
+              <select value={formData.classId} onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Select Class</option>
+                {classes.map((c) => <option key={c.classId} value={c.classId}>{c.className}</option>)}
               </select>
             </div>
             <div>

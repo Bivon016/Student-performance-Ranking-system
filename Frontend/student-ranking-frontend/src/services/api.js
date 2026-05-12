@@ -1,60 +1,181 @@
-// services/api.js
 import { apiFetch } from "../utils/api";
 
-const BASE_URL = 'http://localhost:8080';
+// ─── Base URLs ────────────────────────────────────────────────────────────────
+const BASE             = "http://localhost:8080";
+const STUDENTS_BASE    = `${BASE}/students`;
+const SUBJECTS_BASE    = `${BASE}/subjects`;
+const MARKS_BASE       = `${BASE}/marks`;
+const EXAMS_BASE       = `${BASE}/exams`;
+const CLASSES_BASE     = `${BASE}/classes`;
+const RANKING_BASE     = `${BASE}/ranking`;
+const AUTH_BASE        = `${BASE}/auth`;
 
-// Core fetch function using apiFetch for security
-const request = async (endpoint, options = {}) => {
-    const res = await apiFetch(`${BASE_URL}${endpoint}`, {
-        headers: { 'Content-Type': 'application/json' },
-        ...options,
-        body: options.body ? JSON.stringify(options.body) : undefined,
-    });
-    if (!res.ok) throw new Error(`Request failed: ${res.statusText}`);
-    if (res.status === 204) return null;
-    return res.json();
-};
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 
-// ------------------ STUDENTS ------------------
-export const studentService = {
-    getAll: () => request(`/students/allstudents?t=${Date.now()}`),
-    add: (student) => request('/students/add', { method: 'POST', body: student }),
-    update: (id, student) => request(`/students/update/${id}`, { method: 'PUT', body: student }),
-    delete: (id) => request(`/students/deleteStud/${id}`, { method: 'DELETE' }),
-};
+/**
+ * Login — stores token, role, and assignments in localStorage.
+ * Replace any existing login fetch call in your app with this.
+ */
+export async function login(username, password) {
+  const res = await fetch(`${AUTH_BASE}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) throw new Error("Login failed");
+  const data = await res.json(); // { token, role, assignments }
+  localStorage.setItem("token",       data.token);
+  localStorage.setItem("role",        data.role);
+  localStorage.setItem("assignments", JSON.stringify(data.assignments));
+  return data;
+}
 
-// ------------------ MARKS ------------------
-export const marksService = {
-    getAll: () => request('/marks/allmarks'),
-    addBatch: (payload) => request('/marks/add', { method: 'POST', body: payload }),
-    getBySubject: (subjectId) => request(`/marks/subject/${subjectId}`),
-    getByStudent: (studentId) => request(`/marks/student/${studentId}`),
-    getByExam: (examId) => request(`/marks/exam/${examId}`),
-    update: (markId, marksValue) => request(`/marks/update/${markId}?marksValue=${marksValue}`, { method: 'PUT' }),
-    delete: (markId) => request(`/marks/delete/${markId}`, { method: 'DELETE' }),
-};
+export function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("assignments");
+}
 
-// ------------------ EXAMS ------------------
-export const examService = {
-    getAll: () => request('/exams/all'),
-    create: (exam) => request('/exams/create', { method: 'POST', body: exam }),
-    getBySubjectAndForm: (subjectId, form) => request(`/exams/filter?subjectId=${subjectId}&form=${form}`),
-    getByForm: (form) => request(`/exams/form/${form}`),
-    delete: (examId) => request(`/exams/delete/${examId}`, { method: 'DELETE' }),
-};
+export function getRole() {
+  return localStorage.getItem("role");
+}
 
-// ------------------ SUBJECTS ------------------
-export const subjectService = {
-    getAll: () => request('/subjects/allSubjects'),
-    add: (subject) => request('/subjects/addSubjects', { method: 'POST', body: subject }),
-    update: (id, subject) => request(`/subjects/update/${id}`, { method: 'PUT', body: subject }),
-    delete: (id) => request(`/subjects/delete/${id}`, { method: 'DELETE' }),
-};
+export function getAssignments() {
+  return JSON.parse(localStorage.getItem("assignments") || "[]");
+}
 
-// ------------------ CLASSES ------------------
-export const classService = {
-    getAll: () => request('/classes/all'),
-    create: (cls) => request('/classes/create', { method: 'POST', body: cls }),
-    update: (classId, cls) => request(`/classes/update/${classId}`, { method: 'PUT', body: cls }),
-    delete: (classId) => request(`/classes/delete/${classId}`, { method: 'DELETE' }),
-};
+/**
+ * Returns true if the logged-in user can edit marks/exams
+ * for the given subject + class combination.
+ * Use this to show/hide Edit and Delete buttons in the UI.
+ *
+ * @example
+ *   const canEdit = canEditSubject(subjectId, classId);
+ */
+export function canEditSubject(subjectId, classId) {
+  if (getRole() === "ADMIN") return true;
+  return getAssignments().some(
+    (a) => a.subjectId === subjectId && a.classId === classId
+  );
+}
+
+// ─── Generic helpers ──────────────────────────────────────────────────────────
+
+/** GET  → returns parsed JSON */
+async function get(url) {
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
+  return res.json();
+}
+
+/** POST → returns parsed JSON */
+async function post(url, body) {
+  const res = await apiFetch(url, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(msg || `POST ${url} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** PUT  → returns parsed JSON */
+async function put(url, body) {
+  const res = await apiFetch(url, {
+    method: "PUT",
+    ...(body !== undefined && { body: JSON.stringify(body) }),
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(msg || `PUT ${url} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** DELETE → returns true on success */
+async function del(url) {
+  const res = await apiFetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(msg || `DELETE ${url} failed: ${res.status}`);
+  }
+  return true;
+}
+
+// ─── Students ─────────────────────────────────────────────────────────────────
+
+export const getAllStudents    = ()           => get(`${STUDENTS_BASE}/allstudents?t=${Date.now()}`);
+export const addStudent        = (student)    => post(`${STUDENTS_BASE}/add`, student);
+export const addStudentsBatch  = (students)   => post(`${STUDENTS_BASE}/addBatch`, students);
+export const updateStudent     = (id, student)=> put(`${STUDENTS_BASE}/update/${id}`, student);
+export const deleteStudent     = (id)         => del(`${STUDENTS_BASE}/deleteStud/${id}`);
+
+// ─── Subjects ─────────────────────────────────────────────────────────────────
+
+export const getAllSubjects  = ()           => get(`${SUBJECTS_BASE}/allSubjects`);
+export const addSubject      = (subject)    => post(`${SUBJECTS_BASE}/addSubjects`, subject);
+export const updateSubject   = (id, subject)=> put(`${SUBJECTS_BASE}/update/${id}`, subject);
+export const deleteSubject   = (id)         => del(`${SUBJECTS_BASE}/delete/${id}`);
+
+// ─── Classes ──────────────────────────────────────────────────────────────────
+
+export const getAllClasses  = ()            => get(`${CLASSES_BASE}/all`);
+export const createClass    = (cls)         => post(`${CLASSES_BASE}/create`, cls);
+export const updateClass    = (id, cls)     => put(`${CLASSES_BASE}/update/${id}`, cls);
+export const deleteClass    = (id)          => del(`${CLASSES_BASE}/delete/${id}`);
+
+// ─── Exams ────────────────────────────────────────────────────────────────────
+
+export const getAllExams            = ()                   => get(`${EXAMS_BASE}/all`);
+export const getExamsByForm        = (form)                => get(`${EXAMS_BASE}/form/${form}`);
+export const getExamsBySubjectAndForm = (subjectId, form)  =>
+  get(`${EXAMS_BASE}/filter?subjectId=${subjectId}&form=${form}`);
+export const deleteExam            = (examId)              => del(`${EXAMS_BASE}/delete/${examId}`);
+
+/**
+ * Create an exam.
+ * @param {{ examType, examDate, form, subjectId, classId }} exam
+ * classId is required — the backend uses it to verify the teacher is assigned
+ * to this subject+class before allowing the exam to be created.
+ */
+export const createExam = (exam) => post(`${EXAMS_BASE}/create`, exam);
+
+// ─── Marks ────────────────────────────────────────────────────────────────────
+
+export const getAllMarks        = ()            => get(`${MARKS_BASE}/allmarks`);
+export const getMarksByStudent  = (studentId)   => get(`${MARKS_BASE}/student/${studentId}`);
+export const getMarksBySubject  = (subjectId)   => get(`${MARKS_BASE}/subject/${subjectId}`);
+export const getMarksByExam     = (examId)      => get(`${MARKS_BASE}/exam/${examId}`);
+export const getStudentGrades   = (studentId)   => get(`${MARKS_BASE}/grades/${studentId}`);
+export const deleteMarks        = (markId)      => del(`${MARKS_BASE}/delete/${markId}`);
+
+/**
+ * Add marks for many students at once.
+ * @param {{ subjectId, examId, classId, marks: { studentId, marksValue }[] }} payload
+ * classId is required — backend checks teacher is assigned to this subject+class.
+ */
+export const addMarksBatch = (payload) => post(`${MARKS_BASE}/add`, payload);
+
+/**
+ * Update a single mark.
+ * subjectId + classId are required so the backend can verify
+ * the teacher owns this subject+class before allowing the update.
+ *
+ * @param {number} markId
+ * @param {number} marksValue
+ * @param {number} subjectId
+ * @param {number} classId
+ */
+export const updateMarks = (markId, marksValue, subjectId, classId) =>
+  put(`${MARKS_BASE}/update/${markId}?marksValue=${marksValue}&subjectId=${subjectId}&classId=${classId}`);
+
+// ─── Ranking ──────────────────────────────────────────────────────────────────
+
+export async function getResults(classIds, examType) {
+  const params = new URLSearchParams();
+  classIds.forEach((id) => params.append("classIds", id));
+  params.append("examType", examType);
+  return get(`${RANKING_BASE}/results?${params.toString()}`);
+}
