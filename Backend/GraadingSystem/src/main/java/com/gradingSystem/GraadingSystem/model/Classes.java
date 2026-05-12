@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "Classes")
-public class Class {
+public class Classes {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,9 +22,9 @@ public class Class {
     @Column(nullable = false)
     private Integer year;
 
-    public Class() {}
+    public Classes() {}
 
-    public Class(Integer formNumber, String stream, Integer year, String className) {
+    public Classes(Integer formNumber, String stream, Integer year, String className) {
         this.formNumber = formNumber;
         this.stream     = stream;
         this.year       = year;

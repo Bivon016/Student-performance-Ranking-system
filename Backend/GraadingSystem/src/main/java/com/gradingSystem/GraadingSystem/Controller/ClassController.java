@@ -70,7 +70,7 @@ public class ClassController {
     public ResponseEntity<String> deleteClass(@PathVariable Long classId) {
         try {
             classService.deleteClass(classId);
-            return ResponseEntity.ok("Class deleted successfully");
+            return ResponseEntity.ok("Classes deleted successfully");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

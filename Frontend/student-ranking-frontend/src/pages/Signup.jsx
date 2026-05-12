@@ -1,36 +1,42 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, School } from 'lucide-react';
 
 const Signup = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState('');
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
+    setError('');
+    setSuccess('');
 
     try {
       const response = await fetch('http://localhost:8080/public/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // role is set to TEACHER on the backend by default for signup
         body: JSON.stringify({ username, password }),
       });
 
+      const text = await response.text();
+
       if (response.ok) {
-        const text = await response.text();
-        setMessage(text); // "User registered successfully!"
-        setTimeout(() => navigate('/login'), 1500); // redirect after signup
+        setSuccess('Account created! Redirecting to login...');
+        setTimeout(() => navigate('/login'), 1500);
+      } else if (response.status === 409 || text.includes('taken')) {
+        setError('Username already taken. Please choose another.');
       } else {
-        setMessage('Signup failed. Please try again.');
+        setError(text || 'Signup failed. Please try again.');
       }
     } catch (err) {
       console.error(err);
-      setMessage('Failed to connect to server.');
+      setError('Failed to connect to server.');
     }
 
     setLoading(false);
@@ -39,22 +45,34 @@ const Signup = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        {/* Logo/Header */}
+        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl mb-4">
             <School className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Student Ranking System</h1>
-          <p className="text-gray-600">Administrator Signup</p>
+          <p className="text-gray-600">Create a teacher account</p>
         </div>
 
-        {/* Signup Card */}
+        {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Create an Account</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Create Account</h2>
 
-          {message && (
+          {/* Info banner — explains the two-step process to the teacher */}
+          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">
+            After signing up, an administrator will assign you to your subjects and classes
+            before you can enter marks.
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {success && (
             <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded-lg">
-              {message}
+              {success}
             </div>
           )}
 
@@ -98,8 +116,15 @@ const Signup = () => {
               disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {loading ? 'Signing up...' : 'Sign Up'}
+              {loading ? 'Creating account...' : 'Sign Up'}
             </button>
+
+            <div className="mt-4 text-center text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link to="/login" className="text-blue-600 hover:text-blue-800 font-medium">
+                Sign In
+              </Link>
+            </div>
           </form>
         </div>
       </div>

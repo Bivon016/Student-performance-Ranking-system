@@ -1,13 +1,28 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
+import { getRole } from '../services/api';
 
-const PrivateRoute = ({ children }) => {
+/**
+ * PrivateRoute — protects pages behind authentication.
+ *
+ * Usage:
+ *   <PrivateRoute>                        // any logged-in user
+ *   <PrivateRoute roles={["ADMIN"]}>      // admin only
+ *   <PrivateRoute roles={["ADMIN","TEACHER"]}> // either role
+ *
+ * If unauthenticated  → redirects to /login
+ * If wrong role       → redirects to / (dashboard)
+ */
+const PrivateRoute = ({ children, roles }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading]             = useState(true);
+  const [userRole, setUserRole]               = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    const role  = getRole();
     setIsAuthenticated(!!token);
+    setUserRole(role);
     setIsLoading(false);
   }, []);
 
@@ -22,7 +37,13 @@ const PrivateRoute = ({ children }) => {
     );
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  // Not logged in → go to login
+  if (!isAuthenticated) return <Navigate to="/login" />;
+
+  // Logged in but wrong role → go to dashboard
+  if (roles && !roles.includes(userRole)) return <Navigate to="/" />;
+
+  return children;
 };
 
 export default PrivateRoute;

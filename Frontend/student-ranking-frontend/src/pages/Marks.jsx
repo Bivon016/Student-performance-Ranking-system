@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   getAllStudents,
   getAllSubjects,
@@ -8,12 +8,17 @@ import {
   getMarksByExam,
   updateMarks,
   deleteMarks,
+  getRole,
+  canEditSubject,
+  getAssignments,
 } from "../services/api";
 import {
   Search, Plus, CheckCircle, FileText, X,
   Calendar, BookOpen, Users, Eye, Edit,
-  Trash2, Save, BarChart, Lock,
+  Trash2, Save, BarChart, Lock, ShieldAlert,
 } from "lucide-react";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const getGradePoint = (marks) => {
   if (marks >= 80) return { point: 5, color: "bg-green-100 text-green-700" };
@@ -24,23 +29,29 @@ const getGradePoint = (marks) => {
 };
 
 const EXAM_TYPE_LABELS = {
-  FINAL_EXAM:  "Final Exam",
-  MIDTERM:     "Midterm",
-  QUIZ:        "Quiz",
-  ASSIGNMENT:  "Assignment",
-  LAB_WORK:    "Lab Work",
-  PROJECT:     "Project",
+  FINAL_EXAM: "Final Exam",
+  MIDTERM:    "Midterm",
+  QUIZ:       "Quiz",
+  ASSIGNMENT: "Assignment",
+  LAB_WORK:   "Lab Work",
+  PROJECT:    "Project",
 };
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 const Marks = () => {
-  // ── Shared ───────────────────────────────────────────────────────────────────
-  const [loading,   setLoading]   = useState(true);
-  const [students,  setStudents]  = useState([]);
-  const [subjects,  setSubjects]  = useState([]);
-  const [classes,   setClasses]   = useState([]);
+  const role        = getRole();                  // "ADMIN" | "TEACHER"
+  const isAdmin     = role === "ADMIN";
+  const assignments = getAssignments();           // [{ subjectId, classId, subjectName, className }]
+
+  // ── Shared ──────────────────────────────────────────────────────────────────
+  const [loading,  setLoading]  = useState(true);
+  const [students, setStudents] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [classes,  setClasses]  = useState([]);
   const [activeTab, setActiveTab] = useState("add");
 
-  // ══ ADD TAB ══════════════════════════════════════════════════════════════════
+  // ── ADD TAB ─────────────────────────────────────────────────────────────────
   const [addSubjectId,    setAddSubjectId]    = useState("");
   const [addClassId,      setAddClassId]      = useState("");
   const [addExamId,       setAddExamId]       = useState("");
@@ -53,7 +64,7 @@ const Marks = () => {
   const [submitting,      setSubmitting]      = useState(false);
   const [submitted,       setSubmitted]       = useState(false);
 
-  // ══ VIEW TAB ═════════════════════════════════════════════════════════════════
+  // ── VIEW TAB ────────────────────────────────────────────────────────────────
   const [viewSubjectId,    setViewSubjectId]    = useState("");
   const [viewClassId,      setViewClassId]      = useState("");
   const [viewExamId,       setViewExamId]       = useState("");
@@ -68,18 +79,44 @@ const Marks = () => {
   // ── Bootstrap ────────────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([getAllStudents(), getAllSubjects(), getAllClasses()])
-      .then(([s, sub, cls]) => { setStudents(s); setSubjects(sub); setClasses(cls); })
+      .then(([s, sub, cls]) => {
+        setStudents(s);
+        setSubjects(sub);
+        setClasses(cls);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Derived: classId → class object ──────────────────────────────────────────
-  const classMap = classes.reduce((acc, c) => {
-    acc[c.classId] = c;
-    return acc;
-  }, {});
+  // ── Role-filtered subjects & classes ─────────────────────────────────────────
+  // ADMIN sees everything. TEACHER sees only their assigned subjects/classes.
+  const visibleSubjects = useMemo(() => {
+    if (isAdmin) return subjects;
+    const assignedSubjectIds = new Set(assignments.map((a) => a.subjectId));
+    return subjects.filter((s) => assignedSubjectIds.has(s.subjectId));
+  }, [isAdmin, subjects, assignments]);
 
-  // ── Add tab: fetch exams when subject + class change ──────────────────────────
+  // Classes available for a given subject selection (respects teacher assignments)
+  const getVisibleClassesForSubject = (subjectId) => {
+    if (!subjectId) return isAdmin ? classes : [];
+    if (isAdmin) return classes;
+    const assignedClassIds = new Set(
+      assignments
+        .filter((a) => a.subjectId === Number(subjectId))
+        .map((a) => a.classId)
+    );
+    return classes.filter((c) => assignedClassIds.has(c.classId));
+  };
+
+  const addVisibleClasses  = useMemo(() => getVisibleClassesForSubject(addSubjectId),  [addSubjectId,  classes, assignments]);
+  const viewVisibleClasses = useMemo(() => getVisibleClassesForSubject(viewSubjectId), [viewSubjectId, classes, assignments]);
+
+  // ── classId → class object map ───────────────────────────────────────────────
+  const classMap = useMemo(() =>
+    classes.reduce((acc, c) => { acc[c.classId] = c; return acc; }, {}),
+  [classes]);
+
+  // ── Add tab: fetch exams when subject + class change ─────────────────────────
   useEffect(() => {
     if (!addSubjectId || !addClassId) { setAddExams([]); setAddExamId(""); return; }
     const formNumber = classMap[Number(addClassId)]?.formNumber;
@@ -90,7 +127,7 @@ const Marks = () => {
       .finally(() => setLoadingAddExams(false));
   }, [addSubjectId, addClassId]);
 
-  // ── Add tab: fetch existing marks when exam selected ──────────────────────────
+  // ── Add tab: fetch existing marks when exam selected ─────────────────────────
   useEffect(() => {
     if (!addExamId) { setExistingMarks([]); return; }
     setLoadingExisting(true);
@@ -99,7 +136,7 @@ const Marks = () => {
       .finally(() => setLoadingExisting(false));
   }, [addExamId]);
 
-  // ── View tab: fetch exams ─────────────────────────────────────────────────────
+  // ── View tab: fetch exams ────────────────────────────────────────────────────
   useEffect(() => {
     if (!viewSubjectId || !viewClassId) {
       setViewExams([]); setViewExamId(""); setViewMarks([]);
@@ -113,7 +150,7 @@ const Marks = () => {
       .finally(() => setLoadingViewExams(false));
   }, [viewSubjectId, viewClassId]);
 
-  // ── View tab: fetch marks when exam chosen ────────────────────────────────────
+  // ── View tab: fetch marks when exam chosen ───────────────────────────────────
   useEffect(() => {
     if (!viewExamId) { setViewMarks([]); return; }
     setLoadingMarks(true);
@@ -153,7 +190,7 @@ const Marks = () => {
     ? Math.round(viewMarks.reduce((s, m) => s + m.marksValue, 0) / viewMarks.length)
     : null;
 
-  // ── Add handlers ──────────────────────────────────────────────────────────────
+  // ── Add handlers ─────────────────────────────────────────────────────────────
   const resetAdd = () => {
     setAddSubjectId(""); setAddClassId(""); setAddExamId("");
     setAddExams([]); setExistingMarks([]); setMarksInput({});
@@ -169,6 +206,7 @@ const Marks = () => {
     const payload = {
       subjectId: Number(addSubjectId),
       examId:    Number(addExamId),
+      classId:   Number(addClassId),   // ✅ required for backend auth check
       marks: pendingStudents.map((s) => ({
         studentId:  s.id,
         marksValue: Number(marksInput[s.id] ?? 0),
@@ -183,7 +221,7 @@ const Marks = () => {
       setSubmitted(true);
     } catch (err) {
       console.error(err);
-      alert("Failed to submit marks.");
+      alert("Failed to submit marks. You may not be assigned to this subject.");
     } finally {
       setSubmitting(false);
     }
@@ -197,14 +235,15 @@ const Marks = () => {
 
   const handleSaveEdit = async (marksId) => {
     try {
-      await updateMarks(marksId, Number(editingValue));
+      // ✅ Pass subjectId + classId so backend can verify teacher ownership
+      await updateMarks(marksId, Number(editingValue), Number(viewSubjectId), Number(viewClassId));
       setViewMarks((prev) =>
         prev.map((m) => m.marksId === marksId ? { ...m, marksValue: Number(editingValue) } : m)
       );
       setEditingMark(null);
     } catch (err) {
       console.error(err);
-      alert("Failed to update mark.");
+      alert("Failed to update mark. You may not be assigned to this subject.");
     }
   };
 
@@ -218,6 +257,20 @@ const Marks = () => {
       alert("Failed to delete mark.");
     }
   };
+
+  // ── No assignments guard (teacher with no assignments yet) ───────────────────
+  if (!isAdmin && assignments.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-3 text-center">
+        <ShieldAlert className="h-14 w-14 text-amber-400" />
+        <h2 className="text-xl font-bold text-gray-800">No Subjects Assigned</h2>
+        <p className="text-gray-500 max-w-sm">
+          You haven't been assigned to any subjects yet. Please contact an administrator
+          to assign your subjects and classes before you can enter marks.
+        </p>
+      </div>
+    );
+  }
 
   // ── Loading ───────────────────────────────────────────────────────────────────
   if (loading) {
@@ -257,30 +310,48 @@ const Marks = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Marks Management</h1>
-          <p className="text-gray-600">Add and view student marks by subject, class and exam</p>
+          <p className="text-gray-600">
+            {isAdmin
+              ? "Add and view student marks by subject, class and exam"
+              : `Showing your ${assignments.length} assigned subject${assignments.length !== 1 ? "s" : ""}`}
+          </p>
         </div>
+        {/* Role badge */}
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+          isAdmin ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+        }`}>
+          {isAdmin ? "Admin" : "Teacher"}
+        </span>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
-          <div><p className="text-sm text-gray-500">Total Students</p>
-            <p className="text-2xl font-bold mt-1">{students.length}</p></div>
+          <div>
+            <p className="text-sm text-gray-500">Total Students</p>
+            <p className="text-2xl font-bold mt-1">{students.length}</p>
+          </div>
           <Users className="h-8 w-8 text-blue-500" />
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
-          <div><p className="text-sm text-gray-500">Subjects</p>
-            <p className="text-2xl font-bold mt-1">{subjects.length}</p></div>
+          <div>
+            <p className="text-sm text-gray-500">{isAdmin ? "All Subjects" : "My Subjects"}</p>
+            <p className="text-2xl font-bold mt-1">{visibleSubjects.length}</p>
+          </div>
           <BookOpen className="h-8 w-8 text-green-500" />
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
-          <div><p className="text-sm text-gray-500">Classes</p>
-            <p className="text-2xl font-bold mt-1">{classes.length}</p></div>
+          <div>
+            <p className="text-sm text-gray-500">{isAdmin ? "All Classes" : "My Classes"}</p>
+            <p className="text-2xl font-bold mt-1">
+              {isAdmin ? classes.length : new Set(assignments.map((a) => a.classId)).size}
+            </p>
+          </div>
           <FileText className="h-8 w-8 text-purple-500" />
         </div>
       </div>
 
-      {/* ── Tabs container ── */}
+      {/* Tabs container */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
 
         {/* Tab buttons */}
@@ -305,9 +376,9 @@ const Marks = () => {
 
         <div className="p-6">
 
-          {/* ════════════════════════════════════════
+          {/* ══════════════════════════════════════
               ADD TAB
-          ════════════════════════════════════════ */}
+          ══════════════════════════════════════ */}
           {activeTab === "add" && (
             <div className="space-y-6">
 
@@ -317,34 +388,55 @@ const Marks = () => {
                   Step 1 — Select Subject, Class &amp; Exam
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                  {/* Subject — filtered for teacher */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <BookOpen size={14} className="inline mr-1" />Subject *
                     </label>
                     <select value={addSubjectId}
-                      onChange={(e) => { setAddSubjectId(e.target.value); setAddExamId(""); setExistingMarks([]); }}
+                      onChange={(e) => {
+                        setAddSubjectId(e.target.value);
+                        setAddClassId("");
+                        setAddExamId("");
+                        setExistingMarks([]);
+                      }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">Select Subject</option>
-                      {subjects.map((sub) => (
-                        <option key={`sub-${sub.subjectId}`} value={sub.subjectId}>{sub.subjectName}</option>
+                      {visibleSubjects.map((sub) => (
+                        <option key={`sub-${sub.subjectId}`} value={sub.subjectId}>
+                          {sub.subjectName}
+                        </option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Class — filtered by assignment for teacher */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Users size={14} className="inline mr-1" />Class *
                     </label>
                     <select value={addClassId}
-                      onChange={(e) => { setAddClassId(e.target.value); setAddExamId(""); setMarksInput({}); setExistingMarks([]); }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">Select Class</option>
-                      {classes.map((c) => (
-                        <option key={`add-cls-${c.classId}`} value={c.classId}>{c.className}</option>
+                      onChange={(e) => {
+                        setAddClassId(e.target.value);
+                        setAddExamId("");
+                        setMarksInput({});
+                        setExistingMarks([]);
+                      }}
+                      disabled={!addSubjectId}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
+                      <option value="">
+                        {!addSubjectId ? "Select subject first" : "Select Class"}
+                      </option>
+                      {addVisibleClasses.map((c) => (
+                        <option key={`add-cls-${c.classId}`} value={c.classId}>
+                          {c.className}
+                        </option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Exam */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Calendar size={14} className="inline mr-1" />Exam *
@@ -357,8 +449,10 @@ const Marks = () => {
                         disabled={!addSubjectId || !addClassId}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
                         <option value="">
-                          {!addSubjectId || !addClassId ? "Select subject & class first"
-                            : addExams.length === 0 ? "No exams — create one in Exams page"
+                          {!addSubjectId || !addClassId
+                            ? "Select subject & class first"
+                            : addExams.length === 0
+                            ? "No exams — create one in Exams page"
                             : "Select Exam"}
                         </option>
                         {addExams.map((ex) => (
@@ -375,7 +469,6 @@ const Marks = () => {
               {/* Step 2 — student table */}
               {addExamId && addClassStudents.length > 0 && (
                 <div className="space-y-4">
-
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
@@ -414,8 +507,7 @@ const Marks = () => {
                           {filteredPending.map((s) => {
                             const inputValue = marksInput[s.id];
                             const grade = inputValue === undefined || inputValue === ""
-                              ? null
-                              : getGradePoint(Number(inputValue));
+                              ? null : getGradePoint(Number(inputValue));
                             return (
                               <tr key={`pending-${s.id}`} className="hover:bg-gray-50">
                                 <td className="px-5 py-3">
@@ -426,9 +518,7 @@ const Marks = () => {
                                     <span className="font-medium text-gray-900">{s.firstName} {s.secondName}</span>
                                   </div>
                                 </td>
-                                <td className="px-5 py-3 text-gray-600 text-sm">
-                                  {classMap[s.classId]?.className ?? "—"}
-                                </td>
+                                <td className="px-5 py-3 text-gray-600 text-sm">{classMap[s.classId]?.className ?? "—"}</td>
                                 <td className="px-5 py-3">
                                   <input type="number" min="0" max="100" placeholder="0"
                                     value={marksInput[s.id] ?? ""}
@@ -440,9 +530,7 @@ const Marks = () => {
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${grade.color}`}>
                                       {grade.point}
                                     </span>
-                                  ) : (
-                                    <span className="text-gray-400 text-sm">—</span>
-                                  )}
+                                  ) : <span className="text-gray-400 text-sm">—</span>}
                                 </td>
                                 <td className="px-5 py-3">
                                   <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
@@ -466,9 +554,7 @@ const Marks = () => {
                                     <span className="font-medium text-gray-700">{s.firstName} {s.secondName}</span>
                                   </div>
                                 </td>
-                                <td className="px-5 py-3 text-gray-600 text-sm">
-                                  {classMap[s.classId]?.className ?? "—"}
-                                </td>
+                                <td className="px-5 py-3 text-gray-600 text-sm">{classMap[s.classId]?.className ?? "—"}</td>
                                 <td className="px-5 py-3">
                                   <span className="font-bold text-gray-800">{existing.marksValue}</span>
                                 </td>
@@ -523,7 +609,6 @@ const Marks = () => {
                       </button>
                     </div>
                   )}
-
                 </div>
               )}
 
@@ -532,13 +617,12 @@ const Marks = () => {
                   ⚠️ No exam selected. Go to the <strong>Exams</strong> page to create one first.
                 </p>
               )}
-
             </div>
           )}
 
-          {/* ════════════════════════════════════════
+          {/* ══════════════════════════════════════
               VIEW & EDIT TAB
-          ════════════════════════════════════════ */}
+          ══════════════════════════════════════ */}
           {activeTab === "view" && (
             <div className="space-y-6">
 
@@ -547,34 +631,54 @@ const Marks = () => {
                   Select Subject, Class &amp; Exam to view marks
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                  {/* Subject */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <BookOpen size={14} className="inline mr-1" />Subject
                     </label>
                     <select value={viewSubjectId}
-                      onChange={(e) => { setViewSubjectId(e.target.value); setViewExamId(""); setViewMarks([]); }}
+                      onChange={(e) => {
+                        setViewSubjectId(e.target.value);
+                        setViewClassId("");
+                        setViewExamId("");
+                        setViewMarks([]);
+                      }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">Select Subject</option>
-                      {subjects.map((sub) => (
-                        <option key={`view-sub-${sub.subjectId}`} value={sub.subjectId}>{sub.subjectName}</option>
+                      {visibleSubjects.map((sub) => (
+                        <option key={`view-sub-${sub.subjectId}`} value={sub.subjectId}>
+                          {sub.subjectName}
+                        </option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Class */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Users size={14} className="inline mr-1" />Class
                     </label>
                     <select value={viewClassId}
-                      onChange={(e) => { setViewClassId(e.target.value); setViewExamId(""); setViewMarks([]); }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">Select Class</option>
-                      {classes.map((c) => (
-                        <option key={`view-cls-${c.classId}`} value={c.classId}>{c.className}</option>
+                      onChange={(e) => {
+                        setViewClassId(e.target.value);
+                        setViewExamId("");
+                        setViewMarks([]);
+                      }}
+                      disabled={!viewSubjectId}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
+                      <option value="">
+                        {!viewSubjectId ? "Select subject first" : "Select Class"}
+                      </option>
+                      {viewVisibleClasses.map((c) => (
+                        <option key={`view-cls-${c.classId}`} value={c.classId}>
+                          {c.className}
+                        </option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Exam */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Calendar size={14} className="inline mr-1" />Exam
@@ -643,13 +747,18 @@ const Marks = () => {
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade Point</th>
-                          <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                          {/* Only show Actions column if user can edit this subject+class */}
+                          {canEditSubject(Number(viewSubjectId), Number(viewClassId)) && (
+                            <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
                         {filteredViewMarks.map((m) => {
-                          const isEditing = editingMark === m.marksId;
-                          const grade = getGradePoint(m.marksValue);
+                          const isEditing  = editingMark === m.marksId;
+                          const grade      = getGradePoint(m.marksValue);
+                          const canEdit    = canEditSubject(Number(viewSubjectId), Number(viewClassId));
+
                           return (
                             <tr key={`view-mark-${m.marksId}`} className="hover:bg-gray-50">
                               <td className="px-5 py-3">
@@ -664,7 +773,7 @@ const Marks = () => {
                                 </div>
                               </td>
                               <td className="px-5 py-3 text-gray-600 text-sm">
-                                {classMap[students.find(s => s.id === m.studentId)?.classId]?.className ?? "—"}
+                                {classMap[students.find((s) => s.id === m.studentId)?.classId]?.className ?? "—"}
                               </td>
                               <td className="px-5 py-3">
                                 {isEditing ? (
@@ -682,33 +791,40 @@ const Marks = () => {
                                   {grade.point}
                                 </span>
                               </td>
-                              <td className="px-5 py-3">
-                                <div className="flex items-center gap-2">
-                                  {isEditing ? (
-                                    <>
-                                      <button onClick={() => handleSaveEdit(m.marksId)}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">
-                                        <Save size={12} /><span>Save</span>
-                                      </button>
-                                      <button onClick={() => setEditingMark(null)}
-                                        className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 text-gray-600 text-xs rounded-lg hover:bg-gray-50">
-                                        <X size={12} /><span>Cancel</span>
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button onClick={() => handleStartEdit(m)}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
-                                        <Edit size={12} /><span>Edit</span>
-                                      </button>
-                                      <button onClick={() => handleDelete(m.marksId)}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">
-                                        <Trash2 size={12} /><span>Delete</span>
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </td>
+
+                              {/* Actions — only rendered if user owns this subject+class */}
+                              {canEdit && (
+                                <td className="px-5 py-3">
+                                  <div className="flex items-center gap-2">
+                                    {isEditing ? (
+                                      <>
+                                        <button onClick={() => handleSaveEdit(m.marksId)}
+                                          className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">
+                                          <Save size={12} /><span>Save</span>
+                                        </button>
+                                        <button onClick={() => setEditingMark(null)}
+                                          className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 text-gray-600 text-xs rounded-lg hover:bg-gray-50">
+                                          <X size={12} /><span>Cancel</span>
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button onClick={() => handleStartEdit(m)}
+                                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
+                                          <Edit size={12} /><span>Edit</span>
+                                        </button>
+                                        {/* Delete — admin only */}
+                                        {isAdmin && (
+                                          <button onClick={() => handleDelete(m.marksId)}
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">
+                                            <Trash2 size={12} /><span>Delete</span>
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                           );
                         })}
@@ -733,7 +849,6 @@ const Marks = () => {
                   <p className="text-gray-400 text-sm">Marks will appear here once an exam is selected</p>
                 </div>
               )}
-
             </div>
           )}
 

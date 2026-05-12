@@ -17,6 +17,7 @@ import {
   BookOpen,
   Calendar,
   GraduationCap,
+   UserCog,  
 } from 'lucide-react';
 
 const Layout = () => {
@@ -54,6 +55,13 @@ const Layout = () => {
       icon: <GraduationCap size={20} />,
       type: 'link'
     },
+
+    {
+  title: 'Teachers',       // ✅ add this
+  path: '/teachers',
+  icon: <UserCog size={20} />,
+  type: 'link'
+}       ,
     {
       title: 'Students',
       path: '/students',

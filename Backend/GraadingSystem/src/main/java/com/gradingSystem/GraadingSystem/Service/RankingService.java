@@ -9,12 +9,8 @@ import com.gradingSystem.GraadingSystem.dataStructures.MaxHeap;
 import com.gradingSystem.GraadingSystem.dataStructures.StudentRankNode;
 import com.gradingSystem.GraadingSystem.dto.ResultsResponseDTO;
 import com.gradingSystem.GraadingSystem.dto.StudentResultDTO;
-import com.gradingSystem.GraadingSystem.model.Class;
-import com.gradingSystem.GraadingSystem.model.Exam;
-import com.gradingSystem.GraadingSystem.model.ExamType;
-import com.gradingSystem.GraadingSystem.model.Marks;
-import com.gradingSystem.GraadingSystem.model.Students;
-import com.gradingSystem.GraadingSystem.model.Subjects;
+import com.gradingSystem.GraadingSystem.model.*;
+import com.gradingSystem.GraadingSystem.model.Classes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -69,21 +65,21 @@ public class RankingService {
     public ResultsResponseDTO generateResults(List<Long> classIds, ExamType examType) {
 
         // 1. Load all classes and validate
-        List<Class> classes = classRepo.findAllById(classIds);
+        List<Classes> classes = classRepo.findAllById(classIds);
         if (classes.isEmpty()) throw new RuntimeException("No classes found for given IDs");
 
         // 2. Collect unique formNumbers from selected classes
         Set<Integer> formNumbers = classes.stream()
-                .map(Class::getFormNumber)
+                .map(Classes::getFormNumber)
                 .collect(Collectors.toSet());
 
         // 3. Get all students in selected classes
         List<Students> students = studentRepo.findByClassIdIn(classIds);
         if (students.isEmpty()) throw new RuntimeException("No students found in selected classes");
 
-        // 4. Build classId → Class map for display
-        Map<Long, Class> classMap = classes.stream()
-                .collect(Collectors.toMap(Class::getClassId, c -> c));
+        // 4. Build classId → Classes map for display
+        Map<Long, Classes> classMap = classes.stream()
+                .collect(Collectors.toMap(Classes::getClassId, c -> c));
 
         // 5. Get all subjects (all subjects that have exams for these forms + this examType)
         List<Exam> relevantExams = examRepo.findByFormInAndExamType(formNumbers, examType);
@@ -142,7 +138,7 @@ public class RankingService {
                 }
             }
 
-            Class cls = classMap.get(student.getClassId());
+            Classes cls = classMap.get(student.getClassId());
             unranked.add(new StudentResultDTO(
                     student.getId(),
                     student.getFirstName() + " " + student.getSecondName(),
