@@ -5,6 +5,7 @@ import com.gradingSystem.GraadingSystem.dto.ExamRequestDTO;
 import com.gradingSystem.GraadingSystem.dto.ExamResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,35 +18,38 @@ public class ExamController {
     @Autowired
     private ExamService examService;
 
-    // POST /exams/create
+    // 🔒 Only the assigned teacher for this subject+class, or ADMIN
     @PostMapping("/create")
+    @PreAuthorize("hasAuthority('ADMIN') or " +
+            "@teacherAuthService.isAssignedTo(#dto.subjectId, #dto.classId)")
     public ResponseEntity<ExamResponseDTO> createExam(@RequestBody ExamRequestDTO dto) {
         return ResponseEntity.ok(examService.createExam(dto));
     }
 
-    // GET /exams/all
+    // ✅ Any authenticated user can read
     @GetMapping("/all")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ExamResponseDTO>> getAllExams() {
         return ResponseEntity.ok(examService.getAllExams());
     }
 
-    // GET /exams/filter?subjectId=1&form=2
     @GetMapping("/filter")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ExamResponseDTO>> getBySubjectAndForm(
             @RequestParam Long subjectId,
-            @RequestParam int form
-    ) {
+            @RequestParam int form) {
         return ResponseEntity.ok(examService.getExamsBySubjectAndForm(subjectId, form));
     }
 
-    // GET /exams/form/{form}
     @GetMapping("/form/{form}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ExamResponseDTO>> getByForm(@PathVariable int form) {
         return ResponseEntity.ok(examService.getExamsByForm(form));
     }
 
-    // DELETE /exams/delete/{examId}
+    // 🔒 Only ADMIN can delete exams
     @DeleteMapping("/delete/{examId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> deleteExam(@PathVariable Long examId) {
         examService.deleteExam(examId);
         return ResponseEntity.ok("Exam deleted successfully");

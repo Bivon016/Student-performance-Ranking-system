@@ -1,16 +1,16 @@
 package com.gradingSystem.GraadingSystem.Repository;
 
-import com.gradingSystem.GraadingSystem.model.Class;
+import com.gradingSystem.GraadingSystem.model.Classes;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface ClassRepo extends JpaRepository<Class, Long> {
+public interface ClassRepo extends JpaRepository<Classes, Long> {
 
-    List<Class> findByFormNumber(Integer formNumber);
-    List<Class> findByYear(Integer year);
-    List<Class> findByFormNumberAndYear(Integer formNumber, Integer year);
+    List<Classes> findByFormNumber(Integer formNumber);
+    List<Classes> findByYear(Integer year);
+    List<Classes> findByFormNumberAndYear(Integer formNumber, Integer year);
     boolean existsByFormNumberAndStreamAndYear(Integer formNumber, String stream, Integer year);
 }

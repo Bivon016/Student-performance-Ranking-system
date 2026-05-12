@@ -6,6 +6,7 @@ import com.gradingSystem.GraadingSystem.dto.MarksBatchRequest;
 import com.gradingSystem.GraadingSystem.dto.MarksResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,77 +22,66 @@ public class MarksController {
     @Autowired
     private GradeService gradeService;
 
+    // 🔒 Only the assigned teacher for this subject+class, or ADMIN
     @PostMapping("/add")
+    @PreAuthorize("hasAuthority('ADMIN') or " +
+            "@teacherAuthService.isAssignedTo(#request.subjectId, #request.classId)")
     public ResponseEntity<List<MarksResponseDTO>> addMarksBatch(
             @RequestBody MarksBatchRequest request) {
-
-        return ResponseEntity.ok(
-                marksService.addMarksForManyStudents(request)
-        );
+        return ResponseEntity.ok(marksService.addMarksForManyStudents(request));
     }
 
+    // ✅ Any authenticated user can read
     @GetMapping("/allmarks")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MarksResponseDTO>> getAllMarks() {
-
-        return ResponseEntity.ok(
-                marksService.getAllMarks()
-        );
+        return ResponseEntity.ok(marksService.getAllMarks());
     }
 
     @GetMapping("/student/{studentId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MarksResponseDTO>> getMarksByStudent(
             @PathVariable Long studentId) {
-
-        return ResponseEntity.ok(
-                marksService.getMarksByStudent(studentId)
-        );
+        return ResponseEntity.ok(marksService.getMarksByStudent(studentId));
     }
 
     @GetMapping("/subject/{subjectId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MarksResponseDTO>> getMarksBySubject(
             @PathVariable Long subjectId) {
-
-        return ResponseEntity.ok(
-                marksService.getMarksBySubject(subjectId)
-        );
+        return ResponseEntity.ok(marksService.getMarksBySubject(subjectId));
     }
 
     @GetMapping("/exam/{examId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MarksResponseDTO>> getMarksByExam(
             @PathVariable Long examId) {
-
-        return ResponseEntity.ok(
-                marksService.getMarksByExam(examId)
-        );
+        return ResponseEntity.ok(marksService.getMarksByExam(examId));
     }
 
+    // 🔒 Teacher needs subjectId+classId passed as params to verify ownership
     @PutMapping("/update/{markId}")
+    @PreAuthorize("hasAuthority('ADMIN') or " +
+            "@teacherAuthService.isAssignedTo(#subjectId, #classId)")
     public ResponseEntity<MarksResponseDTO> updateMarks(
             @PathVariable Long markId,
-            @RequestParam int marksValue) {
-
-        return ResponseEntity.ok(
-                marksService.updateMarks(markId, marksValue)
-        );
+            @RequestParam int marksValue,
+            @RequestParam Long subjectId,    // ✅ ADD — needed for auth check
+            @RequestParam Long classId) {    // ✅ ADD — needed for auth check
+        return ResponseEntity.ok(marksService.updateMarks(markId, marksValue));
     }
 
+    // 🔒 Only ADMIN can delete marks
     @DeleteMapping("/delete/{markId}")
-    public ResponseEntity<String> deleteMarks(
-            @PathVariable Long markId) {
-
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<String> deleteMarks(@PathVariable Long markId) {
         marksService.deleteMarks(markId);
-
-        return ResponseEntity.ok(
-                "Marks deleted successfully"
-        );
+        return ResponseEntity.ok("Marks deleted successfully");
     }
 
     @GetMapping("/grades/{studentId}")
-    public ResponseEntity<?> getStudentGrades(
-            @PathVariable Long studentId) {
-
-        return ResponseEntity.ok(
-                gradeService.getStudentGrades(studentId)
-        );
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getStudentGrades(@PathVariable Long studentId) {
+        return ResponseEntity.ok(gradeService.getStudentGrades(studentId));
     }
 }

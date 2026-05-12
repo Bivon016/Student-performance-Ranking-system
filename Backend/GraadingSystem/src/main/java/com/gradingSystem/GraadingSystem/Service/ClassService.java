@@ -2,7 +2,7 @@ package com.gradingSystem.GraadingSystem.Service;
 
 import com.gradingSystem.GraadingSystem.Repository.ClassRepo;
 import com.gradingSystem.GraadingSystem.dto.ClassDTO;
-import com.gradingSystem.GraadingSystem.model.Class;
+import com.gradingSystem.GraadingSystem.model.Classes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,11 +18,11 @@ public class ClassService {
     public ClassDTO createClass(Integer formNumber, String stream, Integer year, String className) {
         if (classRepo.existsByFormNumberAndStreamAndYear(formNumber, stream, year)) {
             throw new RuntimeException(
-                    "Class 'Form " + formNumber + " " + stream + " - " + year + "' already exists."
+                    "Classes 'Form " + formNumber + " " + stream + " - " + year + "' already exists."
             );
         }
-        Class newClass = new Class(formNumber, stream, year, className);
-        return toDTO(classRepo.save(newClass));
+        Classes newClasses = new Classes(formNumber, stream, year, className);
+        return toDTO(classRepo.save(newClasses));
     }
 
     // ── Get All ───────────────────────────────────────────────────────────────
@@ -42,15 +42,15 @@ public class ClassService {
 
     // ── Delete ────────────────────────────────────────────────────────────────
     public void deleteClass(Long classId) {
-        Class cls = classRepo.findById(classId)
-                .orElseThrow(() -> new RuntimeException("Class not found: " + classId));
+        Classes cls = classRepo.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Classes not found: " + classId));
         classRepo.delete(cls);
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
     public ClassDTO updateClass(Long classId, Integer formNumber, String stream, Integer year, String className) {
-        Class cls = classRepo.findById(classId)
-                .orElseThrow(() -> new RuntimeException("Class not found: " + classId));
+        Classes cls = classRepo.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Classes not found: " + classId));
         cls.setFormNumber(formNumber);
         cls.setStream(stream);
         cls.setYear(year);
@@ -59,7 +59,7 @@ public class ClassService {
     }
 
     // ── Converter ─────────────────────────────────────────────────────────────
-    private ClassDTO toDTO(Class cls) {
+    private ClassDTO toDTO(Classes cls) {
         return new ClassDTO(
                 cls.getClassId(),
                 cls.getClassName(),
