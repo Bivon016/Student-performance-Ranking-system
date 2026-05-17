@@ -12,18 +12,19 @@ public class MarksResponseDTO {
     private Long      subjectId;
     private String    subjectName;
 
-    private int gradePoint;
+    private double gradePoint;
 
     // ── NEW exam fields ───────────────────────────────────────────────────────
     private Long      examId;
     private ExamType  examType;
     private LocalDate examDate;
 
-    public int getGradePoint() {
+    public double getGradePoint() {
         return gradePoint;
     }
 
-    public void setGradePoint(int gradePoint) {
+    public void setGradePoint(double gradePoint) {
+
         this.gradePoint = gradePoint;
     }
 

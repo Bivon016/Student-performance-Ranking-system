@@ -40,28 +40,33 @@ export function scoreToGrade(score) {
 /** Mirror of backend calculateGradePoint */
 export function calcGradePoint(marks) {
   if (marks == null) return null;
-  if (marks >= 80) return 5;
-  if (marks >= 70) return 4;
-  if (marks >= 60) return 3;
-  if (marks >= 40) return 2;
-  return 1;
+  if (marks >= 90) return 4;
+  if (marks >= 75) return 3.5;
+  if (marks >= 58) return 3;
+  if (marks >= 41) return 2.5;
+ if (marks >= 31) return 2;
+ if (marks >= 21) return 1.5;
+ if (marks >= 11) return 1;
+  return 0.5;
 }
 
-/** Score → CBC performance level (used by ReportCard print layout) */
 export function scoreToCBC(score) {
   if (score == null) return "—";
   if (score >= 90) return "EE1";
   if (score >= 75) return "EE2";
-  if (score >= 50) return "ME";
-  if (score >= 25) return "AE";
-  return "BE";
+  if (score >= 58) return "ME1";
+  if (score >= 41) return "ME2";
+  if (score >= 31) return "AE1";
+  if (score >= 21) return "AE2";
+  if (score >= 11) return "BE1";
+  return "BE2";
 }
 
 /** Grade-point mean → letter grade */
 function pointsToMeanGrade(totalPoints, subjectCount) {
   if (!subjectCount) return "—";
   const avg = totalPoints / subjectCount;
-  if (avg >= 4.5) return "A";
+  if (avg >= 4.0) return "A";
   if (avg >= 3.5) return "A-";
   if (avg >= 3.0) return "B+";
   if (avg >= 2.5) return "B";
@@ -70,11 +75,11 @@ function pointsToMeanGrade(totalPoints, subjectCount) {
   return "C";
 }
 
-/** Ordinal suffix: 1→"1st", 12→"12th" */
 function ordinal(n) {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  if (v >= 11 && v <= 13) return `${n}th`;
+  return `${n}${s[n % 10] || "th"}`;
 }
 
 /** Exam type enum → human label */

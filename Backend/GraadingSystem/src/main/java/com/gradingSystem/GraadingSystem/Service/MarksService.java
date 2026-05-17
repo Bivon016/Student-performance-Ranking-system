@@ -139,12 +139,15 @@ public class MarksService {
 
         return dto;
     }
-    private int calculateGradePoint(int marks) {
-
-        if (marks >= 80) return 5;
-        else if (marks >= 70) return 4;
-        else if (marks >= 60) return 3;
-        else if (marks >= 40) return 2;
-        else return 1;
+    private double calculateGradePoint(int marks) {
+        if (marks >= 90) return 4.0;
+        if (marks >= 75) return 3.5;
+        if (marks >= 58) return 3.0;
+        if (marks >= 41) return 2.5;
+        if (marks >= 31) return 2.0;
+        if (marks >= 21) return 1.5;
+        if (marks >= 11) return 1.0;
+        if (marks >= 1) return 0.5;
+        return 0.0;
     }
 }
