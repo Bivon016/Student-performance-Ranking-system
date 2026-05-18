@@ -3,6 +3,7 @@ package com.gradingSystem.GraadingSystem.Service;
 
 import com.gradingSystem.GraadingSystem.Repository.UsersRepo;
 import com.gradingSystem.GraadingSystem.dto.SignupRequest;
+import com.gradingSystem.GraadingSystem.model.Role;
 import com.gradingSystem.GraadingSystem.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,7 +27,7 @@ public class UserService {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole("TEACHER");
+        user.setRole(Role.ROLE_CLASS_TEACHER);
 
         userRepo.save(user);
 

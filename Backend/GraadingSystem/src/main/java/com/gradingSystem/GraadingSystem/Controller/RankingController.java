@@ -6,6 +6,7 @@ import com.gradingSystem.GraadingSystem.Service.RankingService;
 import com.gradingSystem.GraadingSystem.model.ExamType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class RankingController {
 
     // Legacy endpoint — kept for backwards compatibility
     @GetMapping("/form/{form}")
+    @PreAuthorize("isAuthenticated()")
     public List<StudentRankingDTO> getFormRanking(@PathVariable int form) {
         return rankingService.rankStudentsByForm(form);
     }
@@ -32,6 +34,7 @@ public class RankingController {
      * examType  — one of: FINAL_EXAM, MIDTERM, QUIZ, ASSIGNMENT, LAB_WORK, PROJECT
      */
     @GetMapping("/results")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getResults(
             @RequestParam List<Long> classIds,
             @RequestParam String examType) {

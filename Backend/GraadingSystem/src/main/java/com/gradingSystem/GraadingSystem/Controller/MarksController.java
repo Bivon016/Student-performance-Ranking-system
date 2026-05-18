@@ -7,6 +7,8 @@ import com.gradingSystem.GraadingSystem.dto.MarksResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,7 +26,7 @@ public class MarksController {
 
     // 🔒 Only the assigned teacher for this subject+class, or ADMIN
     @PostMapping("/add")
-    @PreAuthorize("hasAuthority('ADMIN') or " +
+    @PreAuthorize("hasRole('PRINCIPAL') or " +
             "@teacherAuthService.isAssignedTo(#request.subjectId, #request.classId)")
     public ResponseEntity<List<MarksResponseDTO>> addMarksBatch(
             @RequestBody MarksBatchRequest request) {
@@ -61,7 +63,7 @@ public class MarksController {
 
     // 🔒 Teacher needs subjectId+classId passed as params to verify ownership
     @PutMapping("/update/{markId}")
-    @PreAuthorize("hasAuthority('ADMIN') or " +
+    @PreAuthorize("hasRole('PRINCIPAL') or " +
             "@teacherAuthService.isAssignedTo(#subjectId, #classId)")
     public ResponseEntity<MarksResponseDTO> updateMarks(
             @PathVariable Long markId,
@@ -73,7 +75,7 @@ public class MarksController {
 
     // 🔒 Only ADMIN can delete marks
     @DeleteMapping("/delete/{markId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<String> deleteMarks(@PathVariable Long markId) {
         marksService.deleteMarks(markId);
         return ResponseEntity.ok("Marks deleted successfully");
@@ -83,5 +85,14 @@ public class MarksController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getStudentGrades(@PathVariable Long studentId) {
         return ResponseEntity.ok(gradeService.getStudentGrades(studentId));
+    }
+
+    //debugging
+    @GetMapping("/test-auth")
+    public String testAuth() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println("Authorities: " + auth.getAuthorities());
+        System.out.println("Username: " + auth.getName());
+        return "Check your console";
     }
 }

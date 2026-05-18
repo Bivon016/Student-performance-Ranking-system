@@ -4,6 +4,7 @@ import com.gradingSystem.GraadingSystem.Service.ClassService;
 import com.gradingSystem.GraadingSystem.dto.ClassDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,24 +19,28 @@ public class ClassController {
     private ClassService classService;
 
     // GET /classes/all
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/all")
     public ResponseEntity<List<ClassDTO>> getAllClasses() {
         return ResponseEntity.ok(classService.getAllClasses());
     }
 
     // GET /classes/form/{formNumber}
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/form/{formNumber}")
     public ResponseEntity<List<ClassDTO>> getByForm(@PathVariable Integer formNumber) {
         return ResponseEntity.ok(classService.getClassesByForm(formNumber));
     }
 
     // GET /classes/year/{year}
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/year/{year}")
     public ResponseEntity<List<ClassDTO>> getByYear(@PathVariable Integer year) {
         return ResponseEntity.ok(classService.getClassesByYear(year));
     }
 
     // POST /classes/create
+    @PreAuthorize("hasRole('PRINCIPAL')")
     @PostMapping("/create")
     public ResponseEntity<?> createClass(@RequestBody Map<String, Object> body) {
         try {
@@ -50,6 +55,7 @@ public class ClassController {
     }
 
     // PUT /classes/update/{classId}
+    @PreAuthorize("hasRole('PRINCIPAL')")
     @PutMapping("/update/{classId}")
     public ResponseEntity<?> updateClass(
             @PathVariable Long classId,
@@ -66,6 +72,7 @@ public class ClassController {
     }
 
     // DELETE /classes/delete/{classId}
+    @PreAuthorize("hasRole('PRINCIPAL')")
     @DeleteMapping("/delete/{classId}")
     public ResponseEntity<String> deleteClass(@PathVariable Long classId) {
         try {

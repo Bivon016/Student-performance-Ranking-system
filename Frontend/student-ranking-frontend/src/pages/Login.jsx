@@ -36,6 +36,9 @@ const Login = () => {
         setError('Failed to connect to server.');
       }
     }
+               console.log(localStorage.getItem('token'))
+console.log(localStorage.getItem('role'))
+console.log(localStorage.getItem('assignments'))
 
     setLoading(false);
   };
@@ -113,6 +116,7 @@ const Login = () => {
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
+ 
 
             <div className="mt-4 text-center text-sm text-gray-600">
               Don't have an account?{' '}

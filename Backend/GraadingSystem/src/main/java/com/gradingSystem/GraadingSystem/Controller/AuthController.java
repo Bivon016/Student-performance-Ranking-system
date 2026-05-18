@@ -8,11 +8,14 @@ import com.gradingSystem.GraadingSystem.dto.LoginResponse;
 import com.gradingSystem.GraadingSystem.dto.SignupRequest;
 import com.gradingSystem.GraadingSystem.model.User;
 import com.gradingSystem.GraadingSystem.securityConfig.JwtService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -38,7 +41,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@RequestBody SignupRequest request) {
+    public ResponseEntity<Map<String, Object>> login(@RequestBody SignupRequest request) {
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -56,13 +59,18 @@ public class AuthController {
                                 a.getId(),
                                 a.getSubject().getSubjectId(),
                                 a.getSubject().getSubjectName(),
-                                a.getAssignedClass().getClassId(),   // ✅ updated
-                                a.getAssignedClass().getClassName()  // ✅ updated
+                                a.getAssignedClass().getClassId(),
+                                a.getAssignedClass().getClassName()
                         ))
                         .toList()
                 )
                 .orElse(List.of());
 
-        return new LoginResponse(token, user.getRole(), assignments);
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("role", user.getRole());
+        response.put("assignments", assignments);
+
+        return ResponseEntity.ok(response);
     }
 }

@@ -108,7 +108,8 @@ async function del(url) {
 
 export const getAllStudents    = ()           => get(`${STUDENTS_BASE}/allstudents?t=${Date.now()}`);
 export const addStudent        = (student)    => post(`${STUDENTS_BASE}/add`, student);
-export const addStudentsBatch  = (students)   => post(`${STUDENTS_BASE}/addBatch`, students);
+export const addStudentsBatch = (students, classId) => 
+  post(`${STUDENTS_BASE}/addBatch?classId=${classId}`, students)
 export const updateStudent     = (id, student)=> put(`${STUDENTS_BASE}/update/${id}`, student);
 export const deleteStudent     = (id)         => del(`${STUDENTS_BASE}/deleteStud/${id}`);
 

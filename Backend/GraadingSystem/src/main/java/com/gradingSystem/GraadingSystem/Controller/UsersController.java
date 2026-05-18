@@ -2,6 +2,7 @@ package com.gradingSystem.GraadingSystem.Controller;
 
 import com.gradingSystem.GraadingSystem.Repository.UsersRepo;
 import com.gradingSystem.GraadingSystem.dto.UserSummaryDTO;
+import com.gradingSystem.GraadingSystem.model.Role;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class UsersController {
     public ResponseEntity<List<UserSummaryDTO>> getTeacherUsers() {
         List<UserSummaryDTO> result = StreamSupport
                 .stream(usersRepo.findAll().spliterator(), false)
-                .filter(u -> "TEACHER".equals(u.getRole()))
+                .filter(u -> u.getRole() == Role.ROLE_CLASS_TEACHER)
                 .map(u -> new UserSummaryDTO(u.getId(), u.getUsername(), u.getRole()))
                 .toList();
         return ResponseEntity.ok(result);

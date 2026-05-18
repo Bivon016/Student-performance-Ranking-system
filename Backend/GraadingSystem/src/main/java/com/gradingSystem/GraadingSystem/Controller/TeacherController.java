@@ -23,20 +23,20 @@ public class TeacherController {
     // ── CRUD ──────────────────────────────────────────────────────────────────
 
     @PostMapping("/add")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<Teachers> addTeacher(@RequestBody Teachers teacher) {
         return ResponseEntity.ok(teachersService.addTeacher(teacher));
     }
 
     // ✅ Fixed: was mapped to /teachers/teachers
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<List<Teachers>> getAllTeachers() {
         return ResponseEntity.ok(teachersService.getAllTeachers());
     }
 
     @DeleteMapping("/delete/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<String> deleteTeacher(@PathVariable Long id) {
         teachersService.deleteTeacher(id);
         return ResponseEntity.ok("Teacher deleted successfully");
@@ -45,7 +45,7 @@ public class TeacherController {
     // ── Link teacher → user account ───────────────────────────────────────────
 
     @PutMapping("/{teacherId}/link-user")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<Teachers> linkUser(
             @PathVariable Long teacherId,
             @RequestBody LinkUserRequest request) {
@@ -55,7 +55,7 @@ public class TeacherController {
     // ── Subject+class assignments ─────────────────────────────────────────────
 
     @PostMapping("/{teacherId}/assignments")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<AssignmentDTO> addAssignment(
             @PathVariable Long teacherId,
             @RequestBody TeacherAssignmentRequest request) {
@@ -63,14 +63,14 @@ public class TeacherController {
     }
 
     @GetMapping("/{teacherId}/assignments")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<List<AssignmentDTO>> getAssignments(
             @PathVariable Long teacherId) {
         return ResponseEntity.ok(teachersService.getAssignments(teacherId));
     }
 
     @DeleteMapping("/assignments/{assignmentId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<String> deleteAssignment(
             @PathVariable Long assignmentId) {
         teachersService.deleteAssignment(assignmentId);

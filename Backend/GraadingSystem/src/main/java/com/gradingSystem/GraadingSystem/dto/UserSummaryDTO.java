@@ -1,11 +1,13 @@
 package com.gradingSystem.GraadingSystem.dto;
 
+import com.gradingSystem.GraadingSystem.model.Role;
+
 public class UserSummaryDTO {
     private Long id;
     private String username;
-    private String role;
+    private Role role;
 
-    public UserSummaryDTO(Long id, String username, String role) {
+    public UserSummaryDTO(Long id, String username, Role role) {
         this.id = id;
         this.username = username;
         this.role = role;
@@ -13,5 +15,5 @@ public class UserSummaryDTO {
 
     public Long getId() { return id; }
     public String getUsername() { return username; }
-    public String getRole() { return role; }
+    public Role getRole() { return role; }
 }

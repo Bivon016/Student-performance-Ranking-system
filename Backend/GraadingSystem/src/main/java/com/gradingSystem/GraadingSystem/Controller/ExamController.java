@@ -20,7 +20,7 @@ public class ExamController {
 
     // 🔒 Only the assigned teacher for this subject+class, or ADMIN
     @PostMapping("/create")
-    @PreAuthorize("hasAuthority('ADMIN') or " +
+    @PreAuthorize("hasRole('PRINCIPAL') or " +
             "@teacherAuthService.isAssignedTo(#dto.subjectId, #dto.classId)")
     public ResponseEntity<ExamResponseDTO> createExam(@RequestBody ExamRequestDTO dto) {
         return ResponseEntity.ok(examService.createExam(dto));
@@ -49,7 +49,7 @@ public class ExamController {
 
     // 🔒 Only ADMIN can delete exams
     @DeleteMapping("/delete/{examId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<String> deleteExam(@PathVariable Long examId) {
         examService.deleteExam(examId);
         return ResponseEntity.ok("Exam deleted successfully");
