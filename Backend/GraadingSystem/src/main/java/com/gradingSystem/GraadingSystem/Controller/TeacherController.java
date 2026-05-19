@@ -25,7 +25,9 @@ public class TeacherController {
     @PostMapping("/add")
     @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<Teachers> addTeacher(@RequestBody Teachers teacher) {
+        System.out.println(teacher);
         return ResponseEntity.ok(teachersService.addTeacher(teacher));
+
     }
 
     // ✅ Fixed: was mapped to /teachers/teachers
@@ -76,4 +78,5 @@ public class TeacherController {
         teachersService.deleteAssignment(assignmentId);
         return ResponseEntity.ok("Assignment removed");
     }
+
 }

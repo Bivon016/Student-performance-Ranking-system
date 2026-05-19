@@ -4,6 +4,7 @@ import {
   addSubject,
   updateSubject,
   deleteSubject,
+  getRole,
 } from "../services/api";
 import {
   BookOpen, Plus, Edit, Trash2, X, Save,
@@ -24,6 +25,8 @@ const Subjects = () => {
   const [justAdded, setJustAdded] = useState(null);
 
   const [search, setSearch] = useState("");
+  const role = getRole();
+  const isPrincipal = role === "ROLE_PRINCIPAL";
 
   // ── Load ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -46,7 +49,10 @@ const Subjects = () => {
   );
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
-  const openAdd = () => { setFormData(emptySubject); setEditingId(null); setShowForm(true); setError(null); };
+  const openAdd = () => { 
+    setFormData(emptySubject); 
+    setEditingId(null); setShowForm(true); 
+    setError(null); };
 
   const openEdit = (subject) => {
     setFormData({ subjectName: subject.subjectName });
@@ -112,10 +118,12 @@ const Subjects = () => {
           <h1 className="text-2xl font-bold text-gray-800">Subjects</h1>
           <p className="text-gray-600">Manage school subjects</p>
         </div>
-        <button onClick={openAdd}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700">
-          <Plus size={18} /><span>Add Subject</span>
-        </button>
+        {isPrincipal && (
+          <button onClick={openAdd}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700">
+            <Plus size={18} /><span>Add Subject</span>
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -210,7 +218,9 @@ const Subjects = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                {isPrincipal && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -229,18 +239,21 @@ const Subjects = () => {
                       #{subject.subjectId}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(subject)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
-                        <Edit size={13} /><span>Edit</span>
-                      </button>
-                      <button onClick={() => handleDelete(subject.subjectId, subject.subjectName)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">
-                        <Trash2 size={13} /><span>Delete</span>
-                      </button>
-                    </div>
-                  </td>
+                  {isPrincipal && (
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openEdit(subject)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
+                          <Edit size={13} /><span>Edit</span>
+                        </button>
+                        <button onClick={() => handleDelete(subject.subjectId, subject.subjectName)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">
+                          <Trash2 size={13} />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -256,10 +269,11 @@ const Subjects = () => {
             <p className="text-gray-400 text-sm mb-4">
               {search ? "Try adjusting your search" : "Add the first subject to get started"}
             </p>
-            {!search && (
+            {!search && isPrincipal && (
               <button onClick={openAdd}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-                <Plus size={16} /><span>Add First Subject</span>
+                {isPrincipal && <Plus size={16} />}
+                <span>Add First Subject</span>
               </button>
             )}
           </div>
