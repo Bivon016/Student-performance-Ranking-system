@@ -27,7 +27,7 @@ public class UserService {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(Role.ROLE_CLASS_TEACHER);
+        user.setRole(Role.ROLE_SUBJECT_TEACHER);
 
         userRepo.save(user);
 

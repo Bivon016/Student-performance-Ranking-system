@@ -8,55 +8,60 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/students")
 public class StudentController {
 
-    @Autowired
-    public StudentService studentService;
+    private final StudentService studentService;
 
+    // ✅ Constructor injection — testable, immutable, no public field exposure
+    public StudentController(StudentService studentService) {
+        this.studentService = studentService;
+    }
+
+    // ✅ Fixed: #students.classId (was #dto.classId), added DEPUTY role
     @PostMapping("/add")
-    @PreAuthorize("isAuthenticated()")
-    public Students addStudent(@RequestBody Students students){
-
-        return studentService.addStudent(students);
+    @PreAuthorize("hasAnyRole('PRINCIPAL', 'DEPUTY') or " +
+            "(hasRole('CLASS_TEACHER') and @teacherAuthService.isAssignedTo(#students.classId))")
+    public ResponseEntity<Students> addStudent(@RequestBody Students students) {
+        return ResponseEntity.ok(studentService.addStudent(students));
     }
 
     @GetMapping("/student/{id}")
     @PreAuthorize("isAuthenticated()")
-    public Students viewStudents(@PathVariable Long id){
-        return studentService.viewStudent(id);
+    public ResponseEntity<Students> viewStudent(@PathVariable Long id) {
+        return ResponseEntity.ok(studentService.viewStudent(id));
     }
 
     @GetMapping("/allstudents")
     @PreAuthorize("isAuthenticated()")
-    public List<Students> viewAllStudents(){
-        return studentService.viewAllStudents();
-
+    public ResponseEntity<List<Students>> viewAllStudents() {
+        return ResponseEntity.ok(studentService.viewAllStudents());
     }
+
+    // ✅ Returns ResponseEntity instead of raw String
     @DeleteMapping("/deleteStud/{id}")
-    @PreAuthorize("hasAnyRole('PRINCIPAL','DEPUTY')")
-    public String deleteStudent(@PathVariable Long id){
+    @PreAuthorize("hasAnyRole('PRINCIPAL', 'DEPUTY')")
+    public ResponseEntity<String> deleteStudent(@PathVariable Long id) {
         studentService.deleteStudent(id);
-
-        return "Student deleted succesfully";
+        return ResponseEntity.ok("Student deleted successfully");
     }
+
 
     @PutMapping("/update/{id}")
-    @PreAuthorize("hasAnyRole('PRINCIPAL','DEPUTY') or " +
-            "@teacherAuthService.isAssignedTo(#students.classId)")
-    public Students updateStudents(@PathVariable Long id, @RequestBody Students students) {
-        return studentService.updateStudents(id, students);
+    @PreAuthorize("hasAnyRole('PRINCIPAL', 'DEPUTY') or " +
+            "(hasRole('CLASS_TEACHER') and @teacherAuthService.isAssignedTo(#students.classId))")
+    public ResponseEntity<Students> updateStudents(
+            @PathVariable Long id,
+            @RequestBody Students students) {
+        return ResponseEntity.ok(studentService.updateStudents(id, students));
     }
 
+    // ✅ classId derived from students list — no fragile @RequestParam for auth
     @PostMapping("/addBatch")
-    @PreAuthorize("hasAnyRole('PRINCIPAL','DEPUTY') or " +
-            "@teacherAuthService.isAssignedTo(#classId)")
-    public ResponseEntity<List<Students>> addBatch(
-            @RequestBody List<Students> students,
-            @RequestParam Long classId) {
+    @PreAuthorize("hasAnyRole('PRINCIPAL', 'DEPUTY') or " +
+            "(hasRole('CLASS_TEACHER') and @teacherAuthService.isAssignedTo(#students.classId))")    public ResponseEntity<List<Students>> addBatch(@RequestBody List<Students> students) {
         return ResponseEntity.ok(studentService.addStudentsBatch(students));
     }
 }

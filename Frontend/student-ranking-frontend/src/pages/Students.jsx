@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getAllStudents, addStudent, deleteStudent, updateStudent, getAllClasses } from "../services/api";
+import { getAllStudents, addStudent, deleteStudent, updateStudent, getAllClasses, getRole} from "../services/api";
 import {
   Users, Plus, Edit, Trash2, X, Save,
   Search, CheckCircle, GraduationCap, UserPlus,
@@ -16,6 +16,10 @@ const CLASS_COLORS = [
   "bg-pink-100 text-pink-800",
   "bg-teal-100 text-teal-800",
 ];
+const role = getRole();
+const isPrincipal = role === "ROLE_PRINCIPAL";
+const isDeputy = role === "ROLE_DEPUTY";
+const isClassTeacher = role === "ROLE_CLASS_TEACHER";
 
 const getClassColor = (index) =>
   CLASS_COLORS[index % CLASS_COLORS.length] ?? "bg-gray-100 text-gray-700";
@@ -153,21 +157,23 @@ const Students = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Students</h1>
-          <p className="text-gray-600">Manage student enrolment across all classes</p>
+          <p className="text-gray-600">Manage student records</p>
         </div>
         {/* ✅ Both buttons properly placed inside the component JSX */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowBatch(true)}
-            className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2.5 rounded-lg hover:bg-blue-50 text-sm font-medium">
-            <UserPlus size={16} />Add Multiple
-          </button>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 text-sm font-medium">
-            <Plus size={18} />Admit Student
-          </button>
-        </div>
+        {(isPrincipal || isDeputy || isClassTeacher) && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowBatch(true)}
+              className="flex items-center gap-2 border border-blue-600 text-blue-600 px-4 py-2.5 rounded-lg hover:bg-blue-50 text-sm font-medium">
+              <UserPlus size={16} />Add Multiple
+            </button>
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 text-sm font-medium">
+              <Plus size={18} />Admit Student
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Batch modal */}
@@ -352,7 +358,9 @@ const Students = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+               {isPrincipal || isDeputy || isClassTeacher ? (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -391,18 +399,23 @@ const Students = () => {
                     <td className="px-6 py-4">
                       <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded">#{student.id}</span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openEdit(student)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
-                          <Edit size={13} /><span>Edit</span>
-                        </button>
-                        <button onClick={() => handleDelete(student.id, `${student.firstName} ${student.secondName}`)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">
-                          <Trash2 size={13} /><span>Delete</span>
-                        </button>
-                      </div>
-                    </td>
+                  {(isPrincipal || isDeputy || isClassTeacher) && (
+    <td className="px-6 py-4">
+        <div className="flex items-center gap-2">
+            <button onClick={() => openEdit(student)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
+                <Edit size={13} /><span>Edit</span>
+            </button>
+            {(isPrincipal || isDeputy) && (
+                <button onClick={() => handleDelete(student.id, `${student.firstName} ${student.secondName}`)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">
+                    <Trash2 size={13} /><span>Delete</span>
+                </button>
+            )}
+        </div>
+    </td>
+)}
+  
                   </tr>
                 );
               })}
@@ -423,12 +436,13 @@ const Students = () => {
                 ? "Try adjusting your search or filters"
                 : "Admit the first student to get started"}
             </p>
-            {!search && filterClass === "all" && filterGender === "all" && (
-              <button onClick={openAdd}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-                <Plus size={16} /><span>Admit First Student</span>
-              </button>
-            )}
+           {!search && filterClass === "all" && filterGender === "all" 
+ && (isPrincipal || isDeputy || isClassTeacher) && (
+    <button onClick={openAdd}
+        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+        <Plus size={16} /><span>Admit First Student</span>
+    </button>
+)}
           </div>
         )}
       </div>

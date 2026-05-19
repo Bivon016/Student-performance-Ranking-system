@@ -18,4 +18,10 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
             @Param("subjectId") Long subjectId,
             @Param("classId") Long classId
     );
+    @Query("SELECT COUNT(a) > 0 FROM TeacherAssignment a " +
+            "WHERE a.teacher = :teacher AND a.assignedClass.classId = :classId")
+    boolean existsByTeacherAndClass(
+            @Param("teacher") Teachers teacher,
+            @Param("classId") Long classId);
+
 }

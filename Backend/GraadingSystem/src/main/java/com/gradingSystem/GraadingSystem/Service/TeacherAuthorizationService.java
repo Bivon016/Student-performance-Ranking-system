@@ -32,4 +32,15 @@ public class TeacherAuthorizationService {
                                 teacher, subjectId, classId))  // ✅ updated
                 .orElse(false);
     }
+
+    public boolean isAssignedTo(Long classId){
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return false;
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        Long userId = principal.getUser().getId();
+
+        return teachersRepo.findByUserId(userId)
+                .map(teacher -> assignmentRepo.existsByTeacherAndClass(teacher,classId))
+                .orElse(false);
+    }
 }
