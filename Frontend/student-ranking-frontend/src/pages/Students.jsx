@@ -1,5 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { getAllStudents, addStudent, deleteStudent, updateStudent, getAllClasses, getRole} from "../services/api";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  getAllStudents,
+  getStudentsByClass,
+  addStudent,
+  deleteStudent,
+  updateStudent,
+  getAllClasses,
+  getRole,
+} from "../services/api";
 import {
   Users, Plus, Edit, Trash2, X, Save,
   Search, CheckCircle, GraduationCap, UserPlus,
@@ -16,9 +24,10 @@ const CLASS_COLORS = [
   "bg-pink-100 text-pink-800",
   "bg-teal-100 text-teal-800",
 ];
+
 const role = getRole();
-const isPrincipal = role === "ROLE_PRINCIPAL";
-const isDeputy = role === "ROLE_DEPUTY";
+const isPrincipal    = role === "ROLE_PRINCIPAL";
+const isDeputy       = role === "ROLE_DEPUTY";
 const isClassTeacher = role === "ROLE_CLASS_TEACHER";
 
 const getClassColor = (index) =>
@@ -33,17 +42,32 @@ const Students = () => {
   const [error,     setError]     = useState(null);
 
   const [showForm,  setShowForm]  = useState(false);
-  const [showBatch, setShowBatch] = useState(false);   // ✅ moved inside component
+  const [showBatch, setShowBatch] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData,  setFormData]  = useState(emptyStudent);
   const [saving,    setSaving]    = useState(false);
   const [justAdded, setJustAdded] = useState(null);
 
-  const [search,       setSearch]       = useState("");
-  const [filterClass,  setFilterClass]  = useState("all");
-  const [filterGender, setFilterGender] = useState("all");
+  // ── Filters ───────────────────────────────────────────────────────────────
+  const [search,        setSearch]        = useState("");
+  const [activeClass,   setActiveClass]   = useState("all"); // drives server fetch
+  const [filterGender,  setFilterGender]  = useState("all");
 
-  // ── Load ──────────────────────────────────────────────────────────────────
+  // ── Fetch helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Re-fetch students for the currently active class tab.
+   * Called after add / edit / delete so the list stays fresh.
+   */
+  const fetchStudents = useCallback(async () => {
+    const data =
+      activeClass === "all"
+        ? await getAllStudents()
+        : await getStudentsByClass(activeClass);
+    setStudents(data);
+  }, [activeClass]);
+
+  // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([getAllStudents(), getAllClasses()])
       .then(([s, c]) => { setStudents(s); setClasses(c); })
@@ -51,6 +75,26 @@ const Students = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  // ── Class-tab change → fetch from server ──────────────────────────────────
+  const handleClassChange = async (classId) => {
+    if (classId === activeClass) return;          // no-op if already active
+    setActiveClass(classId);
+    setSearch("");                                // clear search on tab switch
+    setLoading(true);
+    try {
+      const data =
+        classId === "all"
+          ? await getAllStudents()
+          : await getStudentsByClass(classId);
+      setStudents(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Toast auto-dismiss ────────────────────────────────────────────────────
   useEffect(() => {
     if (!justAdded) return;
     const t = setTimeout(() => setJustAdded(null), 3000);
@@ -63,27 +107,31 @@ const Students = () => {
     return acc;
   }, {});
 
+  // Count shown per-class stat card (from full list — only accurate on "all" tab;
+  // on a class tab this naturally equals students.length which is fine)
   const classCounts = classes.reduce((acc, c) => {
     acc[c.classId] = students.filter((s) => s.classId === c.classId).length;
     return acc;
   }, {});
 
+  // Client-side: only search + gender (class filtering is now server-side)
   const filtered = students.filter((s) => {
     const name        = `${s.firstName} ${s.secondName}`.toLowerCase();
     const matchSearch = name.includes(search.toLowerCase()) || String(s.id).includes(search);
-    const matchClass  = filterClass  === "all" || String(s.classId) === filterClass;
     const matchGender = filterGender === "all" || s.gender === filterGender;
-    return matchSearch && matchClass && matchGender;
+    return matchSearch && matchGender;
   });
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const fetchStudents = async () => {        // ✅ named helper for refreshing
-    const updated = await getAllStudents();
-    setStudents(updated);
-  };
-
+  // ── Form handlers ─────────────────────────────────────────────────────────
   const openAdd = () => {
-    setFormData(emptyStudent); setEditingId(null); setShowForm(true); setError(null);
+    setFormData({
+      ...emptyStudent,
+      // Pre-select the active class so teachers don't have to re-pick
+      classId: activeClass !== "all" ? activeClass : "",
+    });
+    setEditingId(null);
+    setShowForm(true);
+    setError(null);
   };
 
   const openEdit = (student) => {
@@ -99,18 +147,24 @@ const Students = () => {
   };
 
   const closeForm = () => {
-    setShowForm(false); setEditingId(null); setFormData(emptyStudent);
+    setShowForm(false);
+    setEditingId(null);
+    setFormData(emptyStudent);
   };
 
   const handleSave = async () => {
     const { firstName, secondName, classId, gender } = formData;
     if (!firstName.trim() || !secondName.trim() || !classId || !gender) {
-      setError("Please fill all fields."); return;
+      setError("Please fill all fields.");
+      return;
     }
-    setError(null); setSaving(true);
+    setError(null);
+    setSaving(true);
     try {
       if (editingId) {
-        await updateStudent(editingId, { firstName, secondName, classId: Number(classId), gender });
+        await updateStudent(editingId, {
+          firstName, secondName, classId: Number(classId), gender,
+        });
       } else {
         await addStudent({ firstName, secondName, classId: Number(classId), gender });
         setJustAdded(`${firstName} ${secondName}`);
@@ -134,6 +188,7 @@ const Students = () => {
     }
   };
 
+  // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -141,6 +196,12 @@ const Students = () => {
       </div>
     );
   }
+
+  // ── Active class label (for empty-state messaging) ────────────────────────
+  const activeClassName =
+    activeClass === "all"
+      ? null
+      : classMap[Number(activeClass)]?.className ?? "this class";
 
   return (
     <div className="space-y-6">
@@ -153,13 +214,12 @@ const Students = () => {
         </div>
       )}
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Students</h1>
           <p className="text-gray-600">Manage student records</p>
         </div>
-        {/* ✅ Both buttons properly placed inside the component JSX */}
         {(isPrincipal || isDeputy || isClassTeacher) && (
           <div className="flex items-center gap-2">
             <button
@@ -176,7 +236,7 @@ const Students = () => {
         )}
       </div>
 
-      {/* Batch modal */}
+      {/* ── Batch modal ── */}
       {showBatch && (
         <BatchAddStudents
           onClose={() => setShowBatch(false)}
@@ -184,7 +244,7 @@ const Students = () => {
         />
       )}
 
-      {/* Stats */}
+      {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <div className="col-span-2 bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
           <div>
@@ -205,10 +265,12 @@ const Students = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
       )}
 
-      {/* Add / Edit Form */}
+      {/* ── Add / Edit Form ── */}
       {showForm && (
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <div className="flex items-center justify-between mb-6">
@@ -222,10 +284,10 @@ const Students = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
-              <input type="text" placeholder="e.g. John"
+              <input
+                type="text" placeholder="e.g. John"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -233,7 +295,8 @@ const Students = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Second Name *</label>
-              <input type="text" placeholder="e.g. Doe"
+              <input
+                type="text" placeholder="e.g. Doe"
                 value={formData.secondName}
                 onChange={(e) => setFormData({ ...formData, secondName: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -253,7 +316,8 @@ const Students = () => {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {classes.map((c) => (
-                    <button key={`class-btn-${c.classId}`} type="button"
+                    <button
+                      key={`class-btn-${c.classId}`} type="button"
                       onClick={() => setFormData({ ...formData, classId: String(c.classId) })}
                       className={`px-4 py-2.5 rounded-lg text-sm font-bold border-2 transition-all ${
                         formData.classId === String(c.classId)
@@ -271,7 +335,8 @@ const Students = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
               <div className="grid grid-cols-2 gap-2">
                 {GENDER_OPTIONS.map((g) => (
-                  <button key={`gender-${g}`} type="button"
+                  <button
+                    key={`gender-${g}`} type="button"
                     onClick={() => setFormData({ ...formData, gender: g })}
                     className={`py-2.5 rounded-lg text-sm font-semibold border-2 transition-all ${
                       formData.gender === g
@@ -285,7 +350,6 @@ const Students = () => {
                 ))}
               </div>
             </div>
-
           </div>
 
           {/* Preview */}
@@ -300,18 +364,20 @@ const Students = () => {
                   {classMap[Number(formData.classId)]?.className} · {formData.gender}
                 </p>
               </div>
-              <span className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold ${getClassColor(classes.findIndex(c => c.classId === Number(formData.classId)))}`}>
+              <span className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold ${getClassColor(classes.findIndex((c) => c.classId === Number(formData.classId)))}`}>
                 {classMap[Number(formData.classId)]?.className}
               </span>
             </div>
           )}
 
           <div className="flex justify-end gap-3 mt-6">
-            <button onClick={closeForm}
+            <button
+              onClick={closeForm}
               className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
               Cancel
             </button>
-            <button onClick={handleSave} disabled={saving}
+            <button
+              onClick={handleSave} disabled={saving}
               className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60">
               <Save size={16} />
               <span>{saving ? "Saving…" : editingId ? "Save Changes" : "Admit Student"}</span>
@@ -320,35 +386,69 @@ const Students = () => {
         </div>
       )}
 
-      {/* Search & Filters */}
-      <div className="bg-white rounded-xl shadow-sm border p-4">
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+      {/* ── Class Tabs + Search/Gender Filter ── */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 space-y-4">
+
+        {/* Class tabs */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => handleClassChange("all")}
+            className={`px-4 py-2 rounded-full text-sm font-medium border-2 transition-all ${
+              activeClass === "all"
+                ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                : "border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600"
+            }`}>
+            All Classes
+          </button>
+          {classes.map((c, index) => (
+            <button
+              key={`tab-${c.classId}`}
+              onClick={() => handleClassChange(String(c.classId))}
+              className={`px-4 py-2 rounded-full text-sm font-medium border-2 transition-all ${
+                activeClass === String(c.classId)
+                  ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                  : "border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600"
+              }`}>
+              {c.className}
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
+                activeClass === String(c.classId)
+                  ? "bg-white/20 text-white"
+                  : getClassColor(index)
+              }`}>
+                {classCounts[c.classId] ?? 0}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Search + gender */}
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between border-t pt-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input type="text" placeholder="Search by name or ID…"
+            <input
+              type="text" placeholder="Search by name or ID…"
               value={search} onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="all">All Classes</option>
-              {classes.map((c) => (
-                <option key={`filter-${c.classId}`} value={c.classId}>{c.className}</option>
-              ))}
-            </select>
-            <select value={filterGender} onChange={(e) => setFilterGender(e.target.value)}
+            <select
+              value={filterGender} onChange={(e) => setFilterGender(e.target.value)}
               className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="all">All Genders</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
             </select>
-            <span className="text-sm text-gray-500">{filtered.length} of {students.length} students</span>
+            <span className="text-sm text-gray-500">
+              {filtered.length} of {students.length} students
+              {activeClassName && (
+                <span className="ml-1 font-medium text-blue-600">in {activeClassName}</span>
+              )}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Table */}
+      {/* ── Table ── */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -358,9 +458,9 @@ const Students = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-               {isPrincipal || isDeputy || isClassTeacher ? (
+                {(isPrincipal || isDeputy || isClassTeacher) && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                ) : null}
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -399,23 +499,24 @@ const Students = () => {
                     <td className="px-6 py-4">
                       <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded">#{student.id}</span>
                     </td>
-                  {(isPrincipal || isDeputy || isClassTeacher) && (
-    <td className="px-6 py-4">
-        <div className="flex items-center gap-2">
-            <button onClick={() => openEdit(student)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
-                <Edit size={13} /><span>Edit</span>
-            </button>
-            {(isPrincipal || isDeputy) && (
-                <button onClick={() => handleDelete(student.id, `${student.firstName} ${student.secondName}`)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">
-                    <Trash2 size={13} /><span>Delete</span>
-                </button>
-            )}
-        </div>
-    </td>
-)}
-  
+                    {(isPrincipal || isDeputy || isClassTeacher) && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEdit(student)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
+                            <Edit size={13} /><span>Edit</span>
+                          </button>
+                          {(isPrincipal || isDeputy) && (
+                            <button
+                              onClick={() => handleDelete(student.id, `${student.firstName} ${student.secondName}`)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">
+                              <Trash2 size={13} /><span>Delete</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -423,26 +524,30 @@ const Students = () => {
           </table>
         </div>
 
+        {/* Empty state */}
         {filtered.length === 0 && (
           <div className="text-center py-14">
             <Users className="h-12 w-12 text-gray-200 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">
-              {search || filterClass !== "all" || filterGender !== "all"
+              {search || filterGender !== "all"
                 ? "No students match your filters"
-                : "No students yet"}
+                : activeClassName
+                  ? `No students in ${activeClassName} yet`
+                  : "No students yet"}
             </p>
             <p className="text-gray-400 text-sm mb-4">
-              {search || filterClass !== "all" || filterGender !== "all"
+              {search || filterGender !== "all"
                 ? "Try adjusting your search or filters"
                 : "Admit the first student to get started"}
             </p>
-           {!search && filterClass === "all" && filterGender === "all" 
- && (isPrincipal || isDeputy || isClassTeacher) && (
-    <button onClick={openAdd}
-        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-        <Plus size={16} /><span>Admit First Student</span>
-    </button>
-)}
+            {!search && filterGender === "all" && (isPrincipal || isDeputy || isClassTeacher) && (
+              <button
+                onClick={openAdd}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+                <Plus size={16} />
+                <span>{activeClassName ? `Admit First Student to ${activeClassName}` : "Admit First Student"}</span>
+              </button>
+            )}
           </div>
         )}
       </div>

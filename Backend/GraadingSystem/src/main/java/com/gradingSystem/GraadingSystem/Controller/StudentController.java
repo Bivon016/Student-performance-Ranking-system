@@ -15,12 +15,10 @@ public class StudentController {
 
     private final StudentService studentService;
 
-    // ✅ Constructor injection — testable, immutable, no public field exposure
     public StudentController(StudentService studentService) {
         this.studentService = studentService;
     }
 
-    // ✅ Fixed: #students.classId (was #dto.classId), added DEPUTY role
     @PostMapping("/add")
     @PreAuthorize("hasAnyRole('PRINCIPAL', 'DEPUTY') or " +
             "(hasRole('CLASS_TEACHER') and @teacherAuthService.isAssignedTo(#students.classId))")
@@ -61,7 +59,17 @@ public class StudentController {
     // ✅ classId derived from students list — no fragile @RequestParam for auth
     @PostMapping("/addBatch")
     @PreAuthorize("hasAnyRole('PRINCIPAL', 'DEPUTY') or " +
-            "(hasRole('CLASS_TEACHER') and @teacherAuthService.isAssignedTo(#students.classId))")    public ResponseEntity<List<Students>> addBatch(@RequestBody List<Students> students) {
+            "(hasRole('CLASS_TEACHER') and @teacherAuthService.isAssignedTo(#students.classId))")
+    public ResponseEntity<List<Students>> addBatch(@RequestBody List<Students> students) {
         return ResponseEntity.ok(studentService.addStudentsBatch(students));
+    }
+    @GetMapping("/class/{classId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Students>> viewAllStudentsByClassId(
+            @PathVariable Long classId) {
+
+        return ResponseEntity.ok(
+                studentService.viewAllStudentsByGrade(classId)
+        );
     }
 }

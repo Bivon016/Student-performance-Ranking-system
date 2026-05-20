@@ -116,6 +116,7 @@ export const deleteStudent     = (id)         => del(`${STUDENTS_BASE}/deleteStu
 // ─── Subjects ─────────────────────────────────────────────────────────────────
 
 export const getAllSubjects  = ()           => get(`${SUBJECTS_BASE}/allSubjects`);
+
 export const addSubject      = (subject)    => post(`${SUBJECTS_BASE}/addSubjects`, subject);
 export const updateSubject   = (id, subject)=> put(`${SUBJECTS_BASE}/update/${id}`, subject);
 export const deleteSubject   = (id)         => del(`${SUBJECTS_BASE}/delete/${id}`);
@@ -180,3 +181,5 @@ export async function getResults(classIds, examType) {
   params.append("examType", examType);
   return get(`${RANKING_BASE}/results?${params.toString()}`);
 }
+export const getStudentsByClass = (classId) => 
+  get(`${STUDENTS_BASE}/class/${classId}`);

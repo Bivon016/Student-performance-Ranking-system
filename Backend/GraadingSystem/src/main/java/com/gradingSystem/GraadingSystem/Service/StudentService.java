@@ -5,6 +5,7 @@ import com.gradingSystem.GraadingSystem.model.Students;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import com.gradingSystem.GraadingSystem.Repository.ClassRepo;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -15,18 +16,34 @@ public class StudentService {
     @Autowired
     public StudentRepo studentRepo;
 
+    @Autowired
+    public ClassRepo classRepo;
+
     public Students addStudent(Students students) {
+
         return studentRepo.save(students);
     }
 
     public Students viewStudent(Long id) {
+
         return studentRepo.findById(id).orElse(null);
     }
 
     public List<Students> viewAllStudents() {
         return studentRepo.findAll();
     }
+    public List<Students> viewAllStudentsByGrade(Long classId) {
 
+        classRepo.findById(classId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Class not found"
+                        )
+                );
+
+        return studentRepo.findByClassId(classId);
+    }
     public void deleteStudent(Long id) {
         Students student = studentRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
