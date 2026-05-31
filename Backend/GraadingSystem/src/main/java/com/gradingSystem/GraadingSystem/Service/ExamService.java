@@ -4,6 +4,7 @@ import com.gradingSystem.GraadingSystem.Repository.ExamRepo;
 import com.gradingSystem.GraadingSystem.Repository.SubjectRepo;
 import com.gradingSystem.GraadingSystem.dto.ExamRequestDTO;
 import com.gradingSystem.GraadingSystem.dto.ExamResponseDTO;
+import com.gradingSystem.GraadingSystem.model.AcademicPeriod;
 import com.gradingSystem.GraadingSystem.model.Exam;
 import com.gradingSystem.GraadingSystem.model.Subjects;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,24 +14,29 @@ import java.util.List;
 
 @Service
 public class ExamService {
+    private final ExamRepo examRepo;
+    private final SubjectRepo subjectRepo;
+    private final AcademicPeriodService academicPeriodService;
 
-    @Autowired
-    private ExamRepo examRepo;
-
-    @Autowired
-    private SubjectRepo subjectRepo;
+    public ExamService(ExamRepo examRepo, SubjectRepo subjectRepo,
+                       AcademicPeriodService academicPeriodService) {
+        this.examRepo = examRepo;
+        this.subjectRepo = subjectRepo;
+        this.academicPeriodService = academicPeriodService;
+    }
 
     // ── Create exam ───────────────────────────────────────────────────────────
     public ExamResponseDTO createExam(ExamRequestDTO dto) {
-
         Subjects subject = subjectRepo.findById(dto.getSubjectId())
                 .orElseThrow(() -> new RuntimeException("Subject not found"));
 
-        Exam exam = new Exam(dto.getExamType(), dto.getExamDate(), dto.getForm(), subject);
+        AcademicPeriod currentPeriod = academicPeriodService.getCurrentPeriod();
+
+        Exam exam = new Exam(dto.getExamType(), dto.getExamDate(),
+                dto.getForm(), subject, currentPeriod);
 
         return convertToDTO(examRepo.save(exam));
     }
-
     // ── Get all exams ─────────────────────────────────────────────────────────
     public List<ExamResponseDTO> getAllExams() {
         return examRepo.findAll().stream().map(this::convertToDTO).toList();
@@ -66,7 +72,10 @@ public class ExamService {
                 e.getExamDate(),
                 e.getForm(),
                 e.getSubject().getSubjectId(),
-                e.getSubject().getSubjectName()
+                e.getSubject().getSubjectName(),
+                e.getAcademicPeriod().getId(),        // ← add
+                e.getAcademicPeriod().getYear(),       // ← add
+                e.getAcademicPeriod().getTerm()        // ← add
         );
     }
 }

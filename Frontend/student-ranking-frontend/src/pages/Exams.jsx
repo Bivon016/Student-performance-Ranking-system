@@ -4,10 +4,12 @@ import React, { useState, useEffect } from "react";
 import {
   getAllSubjects, getAllExams, createExam, deleteExam, getAllClasses,
 } from "../services/api";
+import { getCurrentPeriod } from '../services/api'
+
 import {
   Plus, Trash2, Edit, X, Save,
   Calendar, BookOpen, Users, FileText,
-  Search, CheckCircle, Zap, ChevronDown, ChevronRight,
+  Search, CheckCircle, Zap, ChevronDown, ChevronRight, BarChart2,
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ function SelectAllBar({ onAll, onClear }) {
 }
 
 /** Collapsible group of exams sharing the same examType */
-function ExamGroup({ examType, rows, subjects, classes, onEdit, onDelete }) {
+function ExamGroup({ examType, rows, subjects, classes, onEdit, onDelete, onView }) {
   const [open, setOpen] = useState(true);
   const color = EXAM_TYPE_COLORS[examType] ?? "bg-gray-100 text-gray-700";
   const label = examTypeLabel(examType);
@@ -89,7 +91,7 @@ function ExamGroup({ examType, rows, subjects, classes, onEdit, onDelete }) {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-white">
               <tr>
-                {["Subject", "Class", "Date", "ID", "Actions"].map((h) => (
+                {["Subject", "Class", "Date", "Term", "ID", "Actions"].map((h) => (
                   <th key={h} className="px-5 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {h}
                   </th>
@@ -125,6 +127,13 @@ function ExamGroup({ examType, rows, subjects, classes, onEdit, onDelete }) {
                       </div>
                     </td>
 
+                    {/* Term */}
+                    <td className="px-5 py-3">
+                      <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded font-medium">
+                        {exam.periodYear} T{exam.periodTerm}
+                      </span>
+                    </td>
+
                     {/* ID */}
                     <td className="px-5 py-3">
                       <span className="text-xs font-mono bg-gray-100 text-gray-500 px-2 py-1 rounded">
@@ -135,6 +144,12 @@ function ExamGroup({ examType, rows, subjects, classes, onEdit, onDelete }) {
                     {/* Actions */}
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onView(exam)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          <BarChart2 size={12} /> View Marks
+                        </button>
                         <button
                           onClick={() => onEdit(exam)}
                           className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
@@ -187,6 +202,11 @@ const Exams = () => {
   const [search,  setSearch]  = useState("");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
+  // Drawer
+  const [drawerExam,     setDrawerExam]     = useState(null);
+  const [comparisonData, setComparisonData] = useState([]);
+  const [drawerLoading,  setDrawerLoading]  = useState(false);
+
   // ─── Load data ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -198,6 +218,16 @@ const Exams = () => {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  }, []);
+
+  // ─── Current period ─────────────────────────────────────────────────────────
+
+  const [period, setPeriod] = useState(null);
+
+  useEffect(() => {
+    getCurrentPeriod()
+      .then(setPeriod)
+      .catch(() => setPeriod(null));
   }, []);
 
   // ─── Filtering + grouping ───────────────────────────────────────────────────
@@ -331,6 +361,26 @@ const Exams = () => {
     } catch (err) { console.error(err); alert("Failed to delete exam."); }
   };
 
+  // ─── Drawer helpers ─────────────────────────────────────────────────────────
+
+  const openDrawer = async (exam) => {
+    setDrawerExam(exam);
+    setDrawerLoading(true);
+    try {
+      const data = await fetch(
+        `http://localhost:8080/marks/exam/${exam.examId}/comparison`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      ).then(r => r.json());
+      setComparisonData(data);
+    } catch {
+      setComparisonData([]);
+    } finally {
+      setDrawerLoading(false);
+    }
+  };
+
+  const closeDrawer = () => { setDrawerExam(null); setComparisonData([]); };
+
   // ─── Derived stats ──────────────────────────────────────────────────────────
 
   const thisMonthCount = exams.filter((e) => {
@@ -354,6 +404,11 @@ const Exams = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Exam Management</h1>
           <p className="text-gray-600">Create and manage exams before entering marks</p>
+          {period && (
+            <span className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
+              {period.periodYear} · Term {period.periodTerm}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -378,6 +433,12 @@ const Exams = () => {
         <StatCard label="Classes"     value={new Set(exams.map((e) => e.classId)).size}   icon={<Users    className="h-8 w-8 text-purple-500" />} />
         <StatCard label="This Month"  value={thisMonthCount}                              icon={<Calendar className="h-8 w-8 text-orange-500" />} />
       </div>
+
+      {!period && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
+          ⚠ No active academic period. A principal must create and activate one before exams can be created.
+        </div>
+      )}
 
       {classes.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
@@ -727,6 +788,7 @@ const Exams = () => {
               classes={classes}
               onEdit={openEdit}
               onDelete={handleDelete}
+              onView={openDrawer}
             />
           ))}
         </div>
@@ -756,6 +818,131 @@ const Exams = () => {
               <X size={14} /> Clear Filters
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── Marks Comparison Drawer ── */}
+      {drawerExam && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black bg-opacity-30"
+            onClick={closeDrawer}
+          />
+
+          {/* Drawer panel */}
+          <div className="relative w-full max-w-2xl bg-white shadow-xl flex flex-col h-full overflow-hidden">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">
+                  {examTypeLabel(drawerExam.examType)} — {
+                    subjects.find(s => s.subjectId === drawerExam.subjectId)?.subjectName
+                  }
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {classes.find(c => c.classId === drawerExam.classId)?.className}
+                  {" · "}{drawerExam.periodYear} Term {drawerExam.periodTerm}
+                </p>
+              </div>
+              <button onClick={closeDrawer} className="text-gray-400 hover:text-gray-700">
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Summary bar */}
+            {!drawerLoading && comparisonData.length > 0 && (() => {
+              const mean = (comparisonData.reduce((s, r) => s + r.currentMarks, 0) / comparisonData.length).toFixed(1);
+              const top  = comparisonData.reduce((a, b) => a.currentMarks > b.currentMarks ? a : b);
+              const mostImproved = comparisonData.filter(r => r.change !== null).reduce((a, b) => (a.change ?? -999) > (b.change ?? -999) ? a : b, {});
+              const mostDeclined = comparisonData.filter(r => r.change !== null).reduce((a, b) => (a.change ?? 999)  < (b.change ?? 999)  ? a : b, {});
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-4 bg-gray-50 border-b">
+                  <div>
+                    <p className="text-xs text-gray-500">Class mean</p>
+                    <p className="text-xl font-bold text-gray-800">{mean}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Top performer</p>
+                    <p className="text-sm font-semibold text-gray-800 truncate">{top.studentName}</p>
+                    <p className="text-xs text-gray-400">{top.currentMarks} marks</p>
+                  </div>
+                  {mostImproved.studentName && (
+                    <div>
+                      <p className="text-xs text-gray-500">Most improved</p>
+                      <p className="text-sm font-semibold text-green-700 truncate">{mostImproved.studentName}</p>
+                      <p className="text-xs text-green-500">+{mostImproved.change}</p>
+                    </div>
+                  )}
+                  {mostDeclined.studentName && (
+                    <div>
+                      <p className="text-xs text-gray-500">Most declined</p>
+                      <p className="text-sm font-semibold text-red-700 truncate">{mostDeclined.studentName}</p>
+                      <p className="text-xs text-red-500">{mostDeclined.change}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Table */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {drawerLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-gray-400">Loading marks…</p>
+                </div>
+              ) : comparisonData.length === 0 ? (
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-gray-400">No marks entered for this exam yet.</p>
+                </div>
+              ) : (
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left text-xs font-medium text-gray-500 uppercase py-2">Student</th>
+                      <th className="text-center text-xs font-medium text-gray-500 uppercase py-2">This term</th>
+                      <th className="text-center text-xs font-medium text-gray-500 uppercase py-2">Last term</th>
+                      <th className="text-center text-xs font-medium text-gray-500 uppercase py-2">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {comparisonData
+                      .sort((a, b) => b.currentMarks - a.currentMarks)
+                      .map((row, i) => (
+                        <tr key={row.studentId} className="hover:bg-gray-50">
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400 w-5">#{i + 1}</span>
+                              <span className="text-sm font-medium text-gray-800">{row.studentName}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 text-center">
+                            <span className="text-sm font-bold text-gray-800">{row.currentMarks}</span>
+                          </td>
+                          <td className="py-3 text-center">
+                            <span className="text-sm text-gray-500">
+                              {row.previousMarks ?? '—'}
+                            </span>
+                          </td>
+                          <td className="py-3 text-center">
+                            {row.change === null ? (
+                              <span className="text-xs text-gray-400">New</span>
+                            ) : row.change > 0 ? (
+                              <span className="text-xs font-semibold text-green-600">+{row.change} ↑</span>
+                            ) : row.change < 0 ? (
+                              <span className="text-xs font-semibold text-red-600">{row.change} ↓</span>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

@@ -9,6 +9,7 @@ const EXAMS_BASE       = `${BASE}/exams`;
 const CLASSES_BASE     = `${BASE}/classes`;
 const RANKING_BASE     = `${BASE}/ranking`;
 const AUTH_BASE        = `${BASE}/auth`;
+const PERIOD_BASE      = `${BASE}/period`;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,11 @@ export async function login(username, password) {
   return data;
 }
 
+
+export const getCurrentPeriod = () => get(`${PERIOD_BASE}/viewPeriod`);
+export const getAllPeriods     = () => get(`${PERIOD_BASE}/all`);
+export const createPeriod     = (period) => post(`${PERIOD_BASE}/newPeriod`, period);
+export const setCurrentPeriod = (id) => put(`${PERIOD_BASE}/${id}/setCurrent`);
 export function logout() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
@@ -53,7 +59,7 @@ export function getAssignments() {
  *   const canEdit = canEditSubject(subjectId, classId);
  */
 export function canEditSubject(subjectId, classId) {
-  if (getRole() === "ADMIN") return true;
+ if (getRole() === "ROLE_PRINCIPAL" || getRole() === "ROLE_DEPUTY") return true;
   return getAssignments().some(
     (a) => a.subjectId === subjectId && a.classId === classId
   );

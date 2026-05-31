@@ -1,9 +1,6 @@
 package com.gradingSystem.GraadingSystem.Repository;
 
-import com.gradingSystem.GraadingSystem.model.Exam;
-import com.gradingSystem.GraadingSystem.model.Marks;
-import com.gradingSystem.GraadingSystem.model.Students;
-import com.gradingSystem.GraadingSystem.model.Subjects;
+import com.gradingSystem.GraadingSystem.model.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -39,4 +36,20 @@ public interface Marksrepo extends JpaRepository<Marks, Long> {
         GROUP BY s.id, s.firstName, s.secondName
     """)
     List<Object[]> getStudentTotalsByForm(@Param("classId") int classId);
+
+
+    @Query("""
+    SELECT m FROM Marks m
+    WHERE m.student = :student
+    AND m.subject = :subject
+    AND m.exam.examType = :examType
+    AND m.exam.academicPeriod.id < :currentPeriodId
+    ORDER BY m.exam.academicPeriod.id DESC
+""")
+    List<Marks> findPreviousMarkForStudent(
+            @Param("student") Students student,
+            @Param("subject") Subjects subject,
+            @Param("examType") ExamType examType,
+            @Param("currentPeriodId") Long currentPeriodId
+    );
 }

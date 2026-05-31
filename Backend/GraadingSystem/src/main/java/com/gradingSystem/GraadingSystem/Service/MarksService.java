@@ -6,6 +6,7 @@ import com.gradingSystem.GraadingSystem.Repository.StudentRepo;
 import com.gradingSystem.GraadingSystem.Repository.SubjectRepo;
 import com.gradingSystem.GraadingSystem.dto.MarksBatchRequest;
 import com.gradingSystem.GraadingSystem.dto.MarksResponseDTO;
+import com.gradingSystem.GraadingSystem.dto.StudentComparisonDTO;
 import com.gradingSystem.GraadingSystem.model.Exam;
 import com.gradingSystem.GraadingSystem.model.Marks;
 import com.gradingSystem.GraadingSystem.model.Students;
@@ -111,7 +112,34 @@ public class MarksService {
                 .orElseThrow(() -> new RuntimeException("Marks not found"));
         marksrepo.delete(marks);
     }
+    public List<StudentComparisonDTO> getExamComparison(Long examId) {
 
+        Exam exam = examRepo.findById(examId)
+                .orElseThrow(() -> new RuntimeException("Exam not found"));
+
+        List<Marks> currentMarks = marksrepo.findByExam(exam);
+        Long currentPeriodId = exam.getAcademicPeriod().getId();
+
+        return currentMarks.stream().map(m -> {
+            List<Marks> previous = marksrepo.findPreviousMarkForStudent(
+                    m.getStudent(),
+                    m.getSubject(),
+                    exam.getExamType(),
+                    currentPeriodId
+            );
+
+            Integer prevValue = previous.isEmpty() ? null : previous.get(0).getMarksValue();
+            Integer change    = prevValue == null   ? null : m.getMarksValue() - prevValue;
+
+            return new StudentComparisonDTO(
+                    m.getStudent().getId(),
+                    m.getStudent().getFirstName() + " " + m.getStudent().getSecondName(),
+                    m.getMarksValue(),
+                    prevValue,
+                    change
+            );
+        }).toList();
+    }
     private MarksResponseDTO convertToDTO(Marks m) {
 
         Exam exam = null;

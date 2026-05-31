@@ -59,7 +59,7 @@ function App() {
           <Route
             path="teachers"
             element={
-              <PrivateRoute roles={['ADMIN']}>
+              <PrivateRoute roles={['ROLE_PRINCIPAL']}>
                 <TeacherManager />
               </PrivateRoute>
             }

@@ -4,6 +4,7 @@ import com.gradingSystem.GraadingSystem.Service.GradeService;
 import com.gradingSystem.GraadingSystem.Service.MarksService;
 import com.gradingSystem.GraadingSystem.dto.MarksBatchRequest;
 import com.gradingSystem.GraadingSystem.dto.MarksResponseDTO;
+import com.gradingSystem.GraadingSystem.dto.StudentComparisonDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -94,5 +95,11 @@ public class MarksController {
         System.out.println("Authorities: " + auth.getAuthorities());
         System.out.println("Username: " + auth.getName());
         return "Check your console";
+    }
+    @GetMapping("/exam/{examId}/comparison")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<StudentComparisonDTO>> getExamComparison(
+            @PathVariable Long examId) {
+        return ResponseEntity.ok(marksService.getExamComparison(examId));
     }
 }

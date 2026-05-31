@@ -26,18 +26,31 @@ public class Exam {
     @JoinColumn(name = "subject_id", referencedColumnName = "subject_id", nullable = false)
     private Subjects subject;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "academic_period_id", nullable = false)
+    private AcademicPeriod academicPeriod;
+
     // ── Constructors ──────────────────────────────────────────────────────────
 
     public Exam() {}
 
-    public Exam(ExamType examType, LocalDate examDate, int form, Subjects subject) {
+    public Exam(ExamType examType, LocalDate examDate, int form, Subjects subject, AcademicPeriod academicPeriod) {
         this.examType = examType;
         this.examDate = examDate;
         this.form     = form;
         this.subject  = subject;
+        this.academicPeriod = academicPeriod;
     }
 
     // ── Getters & Setters ─────────────────────────────────────────────────────
+
+    public AcademicPeriod getAcademicPeriod() {
+        return academicPeriod;
+    }
+
+    public void setAcademicPeriod(AcademicPeriod academicPeriod) {
+        this.academicPeriod = academicPeriod;
+    }
 
     public Long getExamId()                    { return examId; }
     public void setExamId(Long examId)         { this.examId = examId; }
