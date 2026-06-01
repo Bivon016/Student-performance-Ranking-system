@@ -5,6 +5,7 @@ import {
   getAllSubjects, getAllExams, createExam, deleteExam, getAllClasses,
 } from "../services/api";
 import { getCurrentPeriod } from '../services/api'
+import * as XLSX from "xlsx";
 
 import {
   Plus, Trash2, Edit, X, Save,
@@ -366,6 +367,66 @@ const Exams = () => {
     } catch (err) { console.error(err); alert("Failed to delete exam."); }
   };
 
+              const exportToExcel = () => {
+  if (!drawerExam || comparisonData.length === 0) {
+    alert("No data to export");
+    return;
+  }
+
+  const subjectName =
+    subjects.find(s => s.subjectId === drawerExam.subjectId)?.subjectName || "Subject";
+
+  const className =
+    classes.find(c => c.classId === drawerExam.classId)?.className || "Class";
+
+  const mean = (
+    comparisonData.reduce((sum, row) => sum + row.currentMarks, 0) /
+    comparisonData.length
+  ).toFixed(1);
+
+  const rows = comparisonData
+    .sort((a, b) => b.currentMarks - a.currentMarks)
+    .map((row, index) => ({
+      Rank: index + 1,
+      Student: row.studentName,
+      CurrentMarks: row.currentMarks,
+      PreviousMarks: row.previousMarks ?? "",
+      Change: row.change ?? ""
+    }));
+
+  const worksheetData = [
+    ["Subject", subjectName],
+    ["Class", className],
+    ["Exam Type", examTypeLabel(drawerExam.examType)],
+    ["Year", drawerExam.periodYear],
+    ["Term", drawerExam.periodTerm],
+    ["Class Mean", mean],
+    [],
+    ["Rank", "Student", "Current Marks", "Previous Marks", "Change"],
+    ...rows.map(r => [
+      r.Rank,
+      r.Student,
+      r.CurrentMarks,
+      r.PreviousMarks,
+      r.Change
+    ])
+  ];
+
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Exam Results"
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `${subjectName}_${className}_${drawerExam.examType}.xlsx`
+  );
+};
   // ─── Drawer helpers ─────────────────────────────────────────────────────────
 
   const openDrawer = async (exam) => {
@@ -829,6 +890,7 @@ const Exams = () => {
       {/* ── Marks Comparison Drawer ── */}
       {drawerExam && (
         <div className="fixed inset-0 z-50 flex justify-end">
+
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black bg-opacity-30"
@@ -851,10 +913,23 @@ const Exams = () => {
                   {" · "}{drawerExam.periodYear} Term {drawerExam.periodTerm}
                 </p>
               </div>
-              <button onClick={closeDrawer} className="text-gray-400 hover:text-gray-700">
-                <X size={22} />
-              </button>
-            </div>
+            <div className="flex items-center gap-2">
+  <button
+    onClick={exportToExcel}
+    className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
+  >
+    Export Excel
+  </button>
+
+  <button
+    onClick={closeDrawer}
+    className="text-gray-400 hover:text-gray-700"
+  >
+    <X size={22} />
+  </button>
+</div>
+</div>
+  
 
             {/* Summary bar */}
             {!drawerLoading && comparisonData.length > 0 && (() => {
