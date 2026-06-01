@@ -14,11 +14,11 @@ public class ExamResponseDTO {
     private Long   periodId;
     private int    periodYear;
     private int    periodTerm;
-
+    private Long classId;
     public ExamResponseDTO() {}
 
     public ExamResponseDTO(Long examId, ExamType examType, LocalDate examDate,
-                           int form, Long subjectId, String subjectName,Long periodId,int periodYear,int periodTerm) {
+                           int form, Long subjectId, String subjectName,Long periodId,int periodYear,int periodTerm,Long classId) {
         this.examId      = examId;
         this.examType    = examType;
         this.examDate    = examDate;
@@ -28,6 +28,15 @@ public class ExamResponseDTO {
         this.periodId   = periodId;
         this.periodYear = periodYear;
         this.periodTerm = periodTerm;
+        this.classId      = classId;
+    }
+
+    public Long getClassId() {
+        return classId;
+    }
+
+    public void setClassId(Long classId) {
+        this.classId = classId;
     }
 
     public Long      getExamId()      { return examId; }

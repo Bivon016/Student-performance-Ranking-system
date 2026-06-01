@@ -286,9 +286,11 @@ const Exams = () => {
     const newExams = [];
     for (const combo of bulkCombinations) {
       try {
+        const selectedClass = classes.find((c) => c.classId === combo.classId);
         const exam = await createExam({
           subjectId: combo.subjectId,
           classId:   combo.classId,
+          form:      selectedClass?.formNumber,
           examType:  bulkExamType,
           examDate:  bulkDate,
         });
@@ -329,11 +331,13 @@ const Exams = () => {
     }
     setSaving(true);
     try {
+      const selectedClass = classes.find((c) => c.classId === Number(classId));
       if (editingExam) {
         await deleteExam(editingExam.examId);
         const created = await createExam({
           subjectId: Number(subjectId),
           classId:   Number(classId),
+          form:      selectedClass?.formNumber,
           examType,
           examDate,
         });
@@ -342,6 +346,7 @@ const Exams = () => {
         const created = await createExam({
           subjectId: Number(subjectId),
           classId:   Number(classId),
+          form:      selectedClass?.formNumber,
           examType,
           examDate,
         });

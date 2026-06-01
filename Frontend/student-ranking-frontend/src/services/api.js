@@ -10,6 +10,7 @@ const CLASSES_BASE     = `${BASE}/classes`;
 const RANKING_BASE     = `${BASE}/ranking`;
 const AUTH_BASE        = `${BASE}/auth`;
 const PERIOD_BASE      = `${BASE}/period`;
+const USERS_BASE      =  `${BASE}/users`
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,17 @@ const PERIOD_BASE      = `${BASE}/period`;
  * Login — stores token, role, and assignments in localStorage.
  * Replace any existing login fetch call in your app with this.
  */
+
+export const getAllTeachers      = ()                    => get(`${BASE}/teachers/all`)
+export const addTeacher          = (teacher)             => post(`${BASE}/teachers/add`, teacher)
+export const deleteTeacher       = (id)                  => del(`${BASE}/teachers/delete/${id}`)
+export const linkUserToTeacher   = (teacherId, userId)   => put(`${BASE}/teachers/${teacherId}/link-user`, { userId })
+export const getTeacherAssignments = (teacherId)         => get(`${BASE}/teachers/${teacherId}/assignments`)
+export const addTeacherAssignment  = (teacherId, body)   => post(`${BASE}/teachers/${teacherId}/assignments`, body)
+export const deleteTeacherAssignment = (assignmentId)    => del(`${BASE}/teachers/assignments/${assignmentId}`)
+export const getAllUsers = () => get(`${AUTH_BASE}/users/all`)
+export const updateRole  = (id, role) => put(`${AUTH_BASE}/users/${id}/role`, { role })
+
 export async function login(username, password) {
   const res = await fetch(`${AUTH_BASE}/login`, {
     method: "POST",
@@ -41,6 +53,8 @@ export function logout() {
   localStorage.removeItem("role");
   localStorage.removeItem("assignments");
 }
+export const getExamsBySubjectAndClass = (subjectId, classId) =>
+  get(`${EXAMS_BASE}/filterByClass?subjectId=${subjectId}&classId=${classId}`);
 
 export function getRole() {
   return localStorage.getItem("role");

@@ -6,9 +6,11 @@ import com.gradingSystem.GraadingSystem.Repository.UsersRepo;
 import com.gradingSystem.GraadingSystem.dto.AssignmentDTO;
 import com.gradingSystem.GraadingSystem.dto.LoginResponse;
 import com.gradingSystem.GraadingSystem.dto.SignupRequest;
+import com.gradingSystem.GraadingSystem.model.Role;
 import com.gradingSystem.GraadingSystem.model.User;
 import com.gradingSystem.GraadingSystem.securityConfig.JwtService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
@@ -71,6 +73,23 @@ public class AuthController {
         response.put("role", user.getRole());
         response.put("assignments", assignments);
 
+
         return ResponseEntity.ok(response);
+    }
+    @GetMapping("/users/all")
+    @PreAuthorize("hasRole('PRINCIPAL')")
+    public ResponseEntity<List<User>> getAllUsers() {
+        return ResponseEntity.ok(usersRepo.findAll());
+    }
+
+    @PutMapping("/users/{id}/role")
+    @PreAuthorize("hasRole('PRINCIPAL')")
+    public ResponseEntity<User> updateRole(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        User user = usersRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setRole(Role.valueOf(body.get("role")));
+        return ResponseEntity.ok(usersRepo.save(user));
     }
 }

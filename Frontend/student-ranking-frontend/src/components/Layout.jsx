@@ -19,6 +19,8 @@ import {
   GraduationCap,
    UserCog,  
 } from 'lucide-react';
+import { getRole } from '../services/api'
+import { Shield } from 'lucide-react';
 
 const Layout = () => {
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -27,6 +29,10 @@ const Layout = () => {
   const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+
+  const role = getRole()
+const isPrincipal = role === 'ROLE_PRINCIPAL'
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -114,7 +120,15 @@ const Layout = () => {
       path: '/settings',
       icon: <Settings size={20} />,
       type: 'link'
-    }
+    },
+
+    {
+    title: 'Admin Panel',
+    path: '/admin',
+    icon: <Shield size={20} />,
+    type: 'link',
+    principalOnly: true
+}
   ];
 
   const isActive = (path) => {
@@ -231,7 +245,7 @@ const Layout = () => {
 
             {/* Nav */}
             <nav className="space-y-1">
-              {menuItems.map((item) => (
+              {menuItems.filter(item => !item.principalOnly || isPrincipal).map((item) => (
                 <div key={item.title}>
                   {item.type === 'link' ? (
                     <Link
@@ -329,7 +343,7 @@ const Layout = () => {
                 </div>
 
                 <nav className="space-y-1">
-                  {menuItems.map((item) => (
+                  {menuItems.filter(item => !item.principalOnly || isPrincipal).map((item) => (
                     <div key={item.title}>
                       {item.type === 'link' ? (
                         <Link

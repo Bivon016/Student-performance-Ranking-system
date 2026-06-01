@@ -4,7 +4,7 @@ import {
   getAllSubjects,
   getAllClasses,
   addMarksBatch,
-  getExamsBySubjectAndForm,
+  getExamsBySubjectAndClass,
   getMarksByExam,
   updateMarks,
   deleteMarks,
@@ -40,15 +40,15 @@ const EXAM_TYPE_LABELS = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const Marks = () => {
-  const role        = getRole();                  // "ADMIN" | "TEACHER"
+  const role        = getRole();
   const isAdmin     = role === "ADMIN";
-  const assignments = getAssignments();           // [{ subjectId, classId, subjectName, className }]
+  const assignments = getAssignments();
 
   // ── Shared ──────────────────────────────────────────────────────────────────
-  const [loading,  setLoading]  = useState(true);
-  const [students, setStudents] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [classes,  setClasses]  = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [students,  setStudents]  = useState([]);
+  const [subjects,  setSubjects]  = useState([]);
+  const [classes,   setClasses]   = useState([]);
   const [activeTab, setActiveTab] = useState("add");
 
   // ── ADD TAB ─────────────────────────────────────────────────────────────────
@@ -89,14 +89,12 @@ const Marks = () => {
   }, []);
 
   // ── Role-filtered subjects & classes ─────────────────────────────────────────
-  // ADMIN sees everything. TEACHER sees only their assigned subjects/classes.
   const visibleSubjects = useMemo(() => {
     if (isAdmin) return subjects;
     const assignedSubjectIds = new Set(assignments.map((a) => a.subjectId));
     return subjects.filter((s) => assignedSubjectIds.has(s.subjectId));
   }, [isAdmin, subjects, assignments]);
 
-  // Classes available for a given subject selection (respects teacher assignments)
   const getVisibleClassesForSubject = (subjectId) => {
     if (!subjectId) return isAdmin ? classes : [];
     if (isAdmin) return classes;
@@ -119,10 +117,8 @@ const Marks = () => {
   // ── Add tab: fetch exams when subject + class change ─────────────────────────
   useEffect(() => {
     if (!addSubjectId || !addClassId) { setAddExams([]); setAddExamId(""); return; }
-    const formNumber = classMap[Number(addClassId)]?.formNumber;
-    if (!formNumber) return;
     setLoadingAddExams(true);
-    getExamsBySubjectAndForm(addSubjectId, formNumber)
+    getExamsBySubjectAndClass(addSubjectId, addClassId)
       .then(setAddExams).catch(console.error)
       .finally(() => setLoadingAddExams(false));
   }, [addSubjectId, addClassId]);
@@ -142,10 +138,8 @@ const Marks = () => {
       setViewExams([]); setViewExamId(""); setViewMarks([]);
       return;
     }
-    const formNumber = classMap[Number(viewClassId)]?.formNumber;
-    if (!formNumber) return;
     setLoadingViewExams(true);
-    getExamsBySubjectAndForm(viewSubjectId, formNumber)
+    getExamsBySubjectAndClass(viewSubjectId, viewClassId)
       .then(setViewExams).catch(console.error)
       .finally(() => setLoadingViewExams(false));
   }, [viewSubjectId, viewClassId]);
@@ -206,7 +200,7 @@ const Marks = () => {
     const payload = {
       subjectId: Number(addSubjectId),
       examId:    Number(addExamId),
-      classId:   Number(addClassId),   // ✅ required for backend auth check
+      classId:   Number(addClassId),
       marks: pendingStudents.map((s) => ({
         studentId:  s.id,
         marksValue: Number(marksInput[s.id] ?? 0),
@@ -233,9 +227,9 @@ const Marks = () => {
     setEditingValue(mark.marksValue);
   };
 
+
   const handleSaveEdit = async (marksId) => {
     try {
-      // ✅ Pass subjectId + classId so backend can verify teacher ownership
       await updateMarks(marksId, Number(editingValue), Number(viewSubjectId), Number(viewClassId));
       setViewMarks((prev) =>
         prev.map((m) => m.marksId === marksId ? { ...m, marksValue: Number(editingValue) } : m)
@@ -258,7 +252,7 @@ const Marks = () => {
     }
   };
 
-  // ── No assignments guard (teacher with no assignments yet) ───────────────────
+  // ── No assignments guard ─────────────────────────────────────────────────────
   if (!isAdmin && assignments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-3 text-center">
@@ -316,7 +310,6 @@ const Marks = () => {
               : `Showing your ${assignments.length} assigned subject${assignments.length !== 1 ? "s" : ""}`}
           </p>
         </div>
-        {/* Role badge */}
         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
           isAdmin ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
         }`}>
@@ -389,7 +382,7 @@ const Marks = () => {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-                  {/* Subject — filtered for teacher */}
+                  {/* Subject */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <BookOpen size={14} className="inline mr-1" />Subject *
@@ -411,7 +404,7 @@ const Marks = () => {
                     </select>
                   </div>
 
-                  {/* Class — filtered by assignment for teacher */}
+                  {/* Class */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Users size={14} className="inline mr-1" />Class *
@@ -747,7 +740,6 @@ const Marks = () => {
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
                           <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade Point</th>
-                          {/* Only show Actions column if user can edit this subject+class */}
                           {canEditSubject(Number(viewSubjectId), Number(viewClassId)) && (
                             <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                           )}
@@ -755,9 +747,9 @@ const Marks = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
                         {filteredViewMarks.map((m) => {
-                          const isEditing  = editingMark === m.marksId;
-                          const grade      = getGradePoint(m.marksValue);
-                          const canEdit    = canEditSubject(Number(viewSubjectId), Number(viewClassId));
+                          const isEditing = editingMark === m.marksId;
+                          const grade     = getGradePoint(m.marksValue);
+                          const canEdit   = canEditSubject(Number(viewSubjectId), Number(viewClassId));
 
                           return (
                             <tr key={`view-mark-${m.marksId}`} className="hover:bg-gray-50">
@@ -792,7 +784,6 @@ const Marks = () => {
                                 </span>
                               </td>
 
-                              {/* Actions — only rendered if user owns this subject+class */}
                               {canEdit && (
                                 <td className="px-5 py-3">
                                   <div className="flex items-center gap-2">
@@ -813,7 +804,6 @@ const Marks = () => {
                                           className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
                                           <Edit size={12} /><span>Edit</span>
                                         </button>
-                                        {/* Delete — admin only */}
                                         {isAdmin && (
                                           <button onClick={() => handleDelete(m.marksId)}
                                             className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">

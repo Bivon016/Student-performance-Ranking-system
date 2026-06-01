@@ -10,10 +10,9 @@ import Subjects       from './pages/Subjects';
 import Settings       from './pages/Settings';
 import Profile        from './pages/Profile';
 import PendingReviews from './pages/PendingReviews';
-
+import AdminPanel from './pages/AdminPanel'
 import TeacherManager from './pages/TeacherManager';
 import ReportCard     from './pages/ReportCard';
-
 import Layout         from './components/Layout';
 import Login          from './pages/Login';
 import Signup         from './pages/Signup';
@@ -54,6 +53,8 @@ function App() {
 
           <Route path="report-card" element={<ReportCard />} />
           <Route path="pending-reviews" element={<PendingReviews />} />
+          <Route path="admin" element={<AdminPanel />} />
+
 
           {/* Admin only */}
           <Route

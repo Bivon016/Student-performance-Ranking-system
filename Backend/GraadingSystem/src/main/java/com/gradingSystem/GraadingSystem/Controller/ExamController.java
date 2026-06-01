@@ -41,6 +41,14 @@ public class ExamController {
         return ResponseEntity.ok(examService.getExamsBySubjectAndForm(subjectId, form));
     }
 
+    @GetMapping("/filterByClass")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ExamResponseDTO>> getBySubjectAndClass(
+            @RequestParam Long subjectId,
+            @RequestParam Long classId) {
+        return ResponseEntity.ok(examService.getExamsBySubjectAndClass(subjectId, classId));
+    }
+
     @GetMapping("/form/{form}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ExamResponseDTO>> getByForm(@PathVariable int form) {

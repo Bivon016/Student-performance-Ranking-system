@@ -12,6 +12,16 @@ public class Exam {
     @Column(name = "exam_id")
     private Long examId;
 
+    private Long classId;
+
+    public Long getClassId() {
+        return classId;
+    }
+
+    public void setClassId(Long classId) {
+        this.classId = classId;
+    }
+
     @Enumerated(EnumType.STRING)
     @Column(name = "exam_type", nullable = false)
     private ExamType examType;
@@ -34,12 +44,13 @@ public class Exam {
 
     public Exam() {}
 
-    public Exam(ExamType examType, LocalDate examDate, int form, Subjects subject, AcademicPeriod academicPeriod) {
+    public Exam(ExamType examType, LocalDate examDate, int form, Subjects subject, AcademicPeriod academicPeriod,Long classId) {
         this.examType = examType;
         this.examDate = examDate;
         this.form     = form;
         this.subject  = subject;
         this.academicPeriod = academicPeriod;
+        this.classId = classId;
     }
 
     // ── Getters & Setters ─────────────────────────────────────────────────────

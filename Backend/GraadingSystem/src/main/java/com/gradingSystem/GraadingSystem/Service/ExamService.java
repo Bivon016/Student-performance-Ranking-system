@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ExamService {
@@ -29,11 +30,10 @@ public class ExamService {
     public ExamResponseDTO createExam(ExamRequestDTO dto) {
         Subjects subject = subjectRepo.findById(dto.getSubjectId())
                 .orElseThrow(() -> new RuntimeException("Subject not found"));
-
         AcademicPeriod currentPeriod = academicPeriodService.getCurrentPeriod();
 
         Exam exam = new Exam(dto.getExamType(), dto.getExamDate(),
-                dto.getForm(), subject, currentPeriod);
+                dto.getForm(), subject, currentPeriod, dto.getClassId());
 
         return convertToDTO(examRepo.save(exam));
     }
@@ -75,7 +75,15 @@ public class ExamService {
                 e.getSubject().getSubjectName(),
                 e.getAcademicPeriod().getId(),        // ← add
                 e.getAcademicPeriod().getYear(),       // ← add
-                e.getAcademicPeriod().getTerm()        // ← add
+                e.getAcademicPeriod().getTerm(),     // ← add
+                e.getClassId()
         );
+    }
+
+    public List<ExamResponseDTO> getExamsBySubjectAndClass(Long subjectId, Long classId) {
+        Subjects subject = subjectRepo.findById(subjectId)
+                .orElseThrow(() -> new RuntimeException("Subject not found"));
+        return examRepo.findBySubjectAndClassId(subject, classId)
+                .stream().map(this::convertToDTO).toList();
     }
 }
