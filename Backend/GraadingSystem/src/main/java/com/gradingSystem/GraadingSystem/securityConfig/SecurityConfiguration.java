@@ -17,6 +17,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
@@ -38,9 +42,11 @@ public class SecurityConfiguration {
                   .cors(Customizer.withDefaults())   // ✅ ENABLE CORS
                   .csrf(csrf -> csrf.disable())
                   .authorizeHttpRequests(auth -> auth
+                          .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // ✅ add this
                           .requestMatchers("/auth/**",
                                   "/public/**").permitAll()
                           .anyRequest().authenticated()
+
                   )
                   .sessionManagement(session ->
                           session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -77,4 +83,5 @@ public class SecurityConfiguration {
      ) throws Exception {
           return configuration.getAuthenticationManager();
      }
+
 }

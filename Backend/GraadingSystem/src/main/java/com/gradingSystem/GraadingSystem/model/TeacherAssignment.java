@@ -22,6 +22,22 @@ public class TeacherAssignment {
     @JoinColumn(name = "class_id", nullable = false)
     private Classes assignedClass;
 
+    public School getSchool() {
+        return school;
+    }
+
+    public void setSchool(School school) {
+        this.school = school;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    @ManyToOne
+    @JoinColumn(name = "school_id")
+    private School school;
+
     public Long getId() { return id; }
 
     public Teachers getTeacher() { return teacher; }

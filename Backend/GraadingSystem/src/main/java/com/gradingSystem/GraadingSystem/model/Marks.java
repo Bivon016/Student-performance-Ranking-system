@@ -22,6 +22,10 @@ public class Marks {
     @JoinColumn(name = "subject_id", referencedColumnName = "subject_id", nullable = false)
     private Subjects subject;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id", nullable = false)
+    private School school;
+
     // ── NEW: link to Exam ─────────────────────────────────────────────────────
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id", referencedColumnName = "exam_id", nullable = false)
@@ -50,6 +54,15 @@ public class Marks {
     public void setStudent(Students s)     { this.student = s; }
 
     public Subjects getSubject()           { return subject; }
+
+    public School getSchool() {
+        return school;
+    }
+
+    public void setSchool(School school) {
+        this.school = school;
+    }
+
     public void setSubject(Subjects s)     { this.subject = s; }
 
     public Exam getExam()                  { return exam; }

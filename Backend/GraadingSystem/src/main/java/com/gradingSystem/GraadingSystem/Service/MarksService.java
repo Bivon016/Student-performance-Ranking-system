@@ -7,12 +7,8 @@ import com.gradingSystem.GraadingSystem.Repository.SubjectRepo;
 import com.gradingSystem.GraadingSystem.dto.MarksBatchRequest;
 import com.gradingSystem.GraadingSystem.dto.MarksResponseDTO;
 import com.gradingSystem.GraadingSystem.dto.StudentComparisonDTO;
-import com.gradingSystem.GraadingSystem.model.Exam;
-import com.gradingSystem.GraadingSystem.model.Marks;
-import com.gradingSystem.GraadingSystem.model.Students;
-import com.gradingSystem.GraadingSystem.model.Subjects;
+import com.gradingSystem.GraadingSystem.model.*;
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,17 +17,24 @@ import java.util.List;
 @Service
 public class MarksService {
 
-    @Autowired
-    private Marksrepo   marksrepo;
-    @Autowired
-    private StudentRepo studentRepo;
-    @Autowired private
-    SubjectRepo subjectRepo;
-    @Autowired private
-    ExamRepo    examRepo;
+
+    private final Marksrepo   marksrepo;
+    private final StudentRepo studentRepo;
+    private final SubjectRepo subjectRepo;
+    private final ExamRepo    examRepo;
+    private final SchoolContextService schoolContextService;
+
+    public MarksService(Marksrepo marksrepo, StudentRepo studentRepo, SubjectRepo subjectRepo, ExamRepo examRepo, SchoolContextService schoolContextService) {
+        this.marksrepo = marksrepo;
+        this.studentRepo = studentRepo;
+        this.subjectRepo = subjectRepo;
+        this.examRepo = examRepo;
+        this.schoolContextService = schoolContextService;
+    }
 
     @Transactional
     public List<MarksResponseDTO> addMarksForManyStudents(MarksBatchRequest request) {
+
 
         Subjects subject = subjectRepo.findById(request.getSubjectId())
                 .orElseThrow(() -> new RuntimeException("Subject not found"));
@@ -40,6 +43,8 @@ public class MarksService {
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
 
         List<Marks> marksList = new ArrayList<>();
+
+        School school = schoolContextService.getCurrentSchool();
 
         for (MarksBatchRequest.StudentMarks sm : request.getMarks()) {
 
@@ -53,17 +58,33 @@ public class MarksService {
                                 + " in exam " + exam.getExamId());
             }
 
-            marksList.add(new Marks(sm.getMarksValue(), student, subject, exam));
+            Marks mark = new Marks(
+                    sm.getMarksValue(),
+                    student,
+                    subject,
+                    exam
+            );
+
+            mark.setSchool(school);
+
+            marksList.add(mark);
         }
 
+// SAVE MARKS
         List<Marks> saved = marksrepo.saveAll(marksList);
-        return saved.stream().map(this::convertToDTO).toList();
+
+// RETURN DTOs
+        return saved.stream()
+                .map(this::convertToDTO)
+                .toList();
     }
 
     // =====================================================
     // VIEW ALL MARKS
     // =====================================================
     public List<MarksResponseDTO> getAllMarks() {
+        School school = schoolContextService.getCurrentSchool();
+
         return marksrepo.findAll().stream().map(this::convertToDTO).toList();
     }
 

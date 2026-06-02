@@ -23,8 +23,20 @@ public class User {
     @Column(name = "Role")
     private Role role;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id")
+    private School school;
+
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public School getSchool() {
+        return school;
+    }
+
+    public void setSchool(School school) {
+        this.school = school;
     }
 
     public Long getId() {

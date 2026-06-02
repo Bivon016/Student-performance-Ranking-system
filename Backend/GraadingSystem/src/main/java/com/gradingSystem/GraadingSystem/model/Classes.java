@@ -19,6 +19,10 @@ public class Classes {
     @Column(nullable = false)
     private String stream;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id", nullable = false)
+    private School school;
+
     @Column(nullable = false)
     private Integer year;
 
@@ -39,12 +43,24 @@ public class Classes {
     public String getClassName()                 { return className; }
     public void setClassName(String className)   { this.className = className; }
 
-    public Integer getFormNumber()               { return formNumber; }
-    public void setFormNumber(Integer formNumber){ this.formNumber = formNumber; }
+    public Integer getFormNumber()               {
+        return formNumber; }
+    public void setFormNumber(Integer formNumber){
+        this.formNumber = formNumber; }
 
-    public String getStream()                    { return stream; }
-    public void setStream(String stream)         { this.stream = stream; }
+    public String getStream()                    {
+        return stream; }
+    public void setStream(String stream)         {
+        this.stream = stream; }
 
-    public Integer getYear()                     { return year; }
-    public void setYear(Integer year)            { this.year = year; }
-}
+    public Integer getYear()                     {
+        return year; }
+    public void setYear(Integer year)            {
+        this.year = year; }
+
+
+    public School getSchool() {
+        return school; }
+    public void setSchool(School school) {
+        this.school = school;
+    }}

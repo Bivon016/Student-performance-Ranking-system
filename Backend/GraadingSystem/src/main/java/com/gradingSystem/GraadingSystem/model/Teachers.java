@@ -22,6 +22,18 @@ public class Teachers {
     @Column(name = "email", nullable = false)
     private String email;
 
+    public School getSchool() {
+        return school;
+    }
+
+    public void setSchool(School school) {
+        this.school = school;
+    }
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id")
+    private School school;
+
     @OneToOne
     @JoinColumn(name = "user_id")
     private User user;
@@ -61,13 +73,5 @@ public class Teachers {
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
 
-    @Override
-    public String toString() {
-        return "Teachers{" +
-                "id=" + id +
-                ", firstName='" + firstName + '\'' +
-                ", secondName='" + secondName + '\'' +
-                ", email='" + email + '\'' +
-                '}';
-    }
+
 }

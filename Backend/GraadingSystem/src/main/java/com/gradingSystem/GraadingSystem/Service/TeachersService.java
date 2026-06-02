@@ -7,36 +7,53 @@ import com.gradingSystem.GraadingSystem.Repository.TeachersRepo;
 import com.gradingSystem.GraadingSystem.Repository.UsersRepo;
 import com.gradingSystem.GraadingSystem.dto.AssignmentDTO;
 import com.gradingSystem.GraadingSystem.dto.TeacherAssignmentRequest;
+import com.gradingSystem.GraadingSystem.model.School;
 import com.gradingSystem.GraadingSystem.model.TeacherAssignment;
 import com.gradingSystem.GraadingSystem.model.Teachers;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 
 import java.util.List;
 
 @Service
 public class TeachersService {
 
-    @Autowired public TeachersRepo teachersRepo;
-    @Autowired private UsersRepo usersRepo;
-    @Autowired private SubjectRepo subjectRepo;
-    @Autowired private ClassRepo classRepo;
-    @Autowired private TeacherAssignmentRepository assignmentRepo;
+     public TeachersRepo teachersRepo;
+     private UsersRepo usersRepo;
+     private SubjectRepo subjectRepo;
+     private ClassRepo classRepo;
+     private TeacherAssignmentRepository assignmentRepo;
+    private final SchoolContextService schoolContextService;
+
+    public TeachersService(SchoolContextService schoolContextService, TeacherAssignmentRepository assignmentRepo,
+                           ClassRepo classRepo, SubjectRepo subjectRepo, UsersRepo usersRepo, TeachersRepo teachersRepo) {
+        this.schoolContextService = schoolContextService;
+        this.assignmentRepo = assignmentRepo;
+        this.classRepo = classRepo;
+        this.subjectRepo = subjectRepo;
+        this.usersRepo = usersRepo;
+        this.teachersRepo = teachersRepo;
+    }
 
     public Teachers addTeacher(Teachers teacher) {
+        School school = schoolContextService.getCurrentSchool();
+        teacher.setSchool(school);
         return teachersRepo.save(teacher);
     }
 
     public List<Teachers> getAllTeachers() {
-        return teachersRepo.findAll();
+        School school = schoolContextService.getCurrentSchool();
+        return teachersRepo.findBySchool(school);
     }
 
     public void deleteTeacher(Long id) {
-        if (!teachersRepo.existsById(id)) {
-            throw new EntityNotFoundException("Teacher does not exist");
-        }
-        teachersRepo.deleteById(id);
+        School school = schoolContextService.getCurrentSchool();
+
+        Teachers teacher = teachersRepo.findByIdAndSchool(id, school)
+                .orElseThrow(() -> new EntityNotFoundException("Teacher does not exist"));
+
+        teachersRepo.delete(teacher);
     }
 
     public Teachers linkUser(Long teacherId, Long userId) {
@@ -49,15 +66,25 @@ public class TeachersService {
     }
 
     public AssignmentDTO addAssignment(Long teacherId, TeacherAssignmentRequest request) {
-        Teachers teacher = teachersRepo.findById(teacherId)
+
+        School school = schoolContextService.getCurrentSchool();
+
+        Teachers teacher = teachersRepo.findByIdAndSchool(teacherId, school)
                 .orElseThrow(() -> new EntityNotFoundException("Teacher not found"));
+
         var subject = subjectRepo.findById(request.getSubjectId())
                 .orElseThrow(() -> new EntityNotFoundException("Subject not found"));
-        var classEntity = classRepo.findById(request.getClassId())
-                .orElseThrow(() -> new EntityNotFoundException("Classes not found"));
+
+        var classEntity = classRepo.findByClassIdAndSchool(
+                        request.getClassId(),
+                        school
+                )
+                .orElseThrow(() -> new EntityNotFoundException("Class not found"));
 
         if (assignmentRepo.existsByTeacherAndSubjectAndClass(
-                teacher, request.getSubjectId(), request.getClassId())) {
+                teacher,
+                request.getSubjectId(),
+                request.getClassId())) {
             throw new IllegalStateException("Assignment already exists");
         }
 
@@ -65,24 +92,34 @@ public class TeachersService {
         assignment.setTeacher(teacher);
         assignment.setSubject(subject);
         assignment.setAssignedClass(classEntity);
-        TeacherAssignment saved = assignmentRepo.save(assignment); // ✅ capture saved
+        assignment.setSchool(school);
+
+        TeacherAssignment saved = assignmentRepo.save(assignment);
 
         return new AssignmentDTO(
-                saved.getId(),                              // ✅ use saved.getId()
-                subject.getSubjectId(), subject.getSubjectName(),
-                classEntity.getClassId(), classEntity.getClassName()
+                saved.getId(),
+                subject.getSubjectId(),
+                subject.getSubjectName(),
+                classEntity.getClassId(),
+                classEntity.getClassName()
         );
     }
 
     public List<AssignmentDTO> getAssignments(Long teacherId) {
+
+        School school = schoolContextService.getCurrentSchool();
+
         Teachers teacher = teachersRepo.findById(teacherId)
                 .orElseThrow(() -> new EntityNotFoundException("Teacher not found"));
-        return assignmentRepo.findByTeacher(teacher)
+
+        return assignmentRepo.findByTeacherAndSchool(teacher, school)
                 .stream()
                 .map(a -> new AssignmentDTO(
                         a.getId(),
-                        a.getSubject().getSubjectId(), a.getSubject().getSubjectName(),
-                        a.getAssignedClass().getClassId(), a.getAssignedClass().getClassName()
+                        a.getSubject().getSubjectId(),
+                        a.getSubject().getSubjectName(),
+                        a.getAssignedClass().getClassId(),
+                        a.getAssignedClass().getClassName()
                 ))
                 .toList();
     }

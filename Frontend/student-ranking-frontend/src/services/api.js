@@ -37,9 +37,19 @@ export async function login(username, password) {
   });
   if (!res.ok) throw new Error("Login failed");
   const data = await res.json(); // { token, role, assignments }
+  
   localStorage.setItem("token",       data.token);
   localStorage.setItem("role",        data.role);
   localStorage.setItem("assignments", JSON.stringify(data.assignments));
+
+  
+  // ✅ Add this — save user object so Layout.jsx can read it
+  localStorage.setItem("user", JSON.stringify({
+    name:  data.name  || data.username || username,
+    email: data.email || '',
+    role:  data.role,
+  }));
+
   return data;
 }
 
@@ -203,3 +213,4 @@ export async function getResults(classIds, examType) {
 }
 export const getStudentsByClass = (classId) => 
   get(`${STUDENTS_BASE}/class/${classId}`);
+

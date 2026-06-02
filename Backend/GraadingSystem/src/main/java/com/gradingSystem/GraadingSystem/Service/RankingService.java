@@ -20,13 +20,25 @@ import java.util.stream.Collectors;
 @Service
 public class RankingService {
 
-    @Autowired private Marksrepo   marksrepo;
-    @Autowired private StudentRepo studentRepo;
-    @Autowired private ClassRepo   classRepo;
-    @Autowired private ExamRepo    examRepo;
-    @Autowired private SubjectRepo subjectRepo;
+     private Marksrepo   marksrepo;
+     private StudentRepo studentRepo;
+     private ClassRepo   classRepo;
+     private ExamRepo    examRepo;
+     private SubjectRepo subjectRepo;
 
-    // ── Legacy endpoint (kept for backwards compat) ───────────────────────────
+    public RankingService(Marksrepo marksrepo, StudentRepo studentRepo, ClassRepo classRepo,
+                          ExamRepo examRepo, SubjectRepo subjectRepo, SchoolContextService schoolContextService) {
+        this.marksrepo = marksrepo;
+        this.studentRepo = studentRepo;
+        this.classRepo = classRepo;
+        this.examRepo = examRepo;
+        this.subjectRepo = subjectRepo;
+        this.schoolContextService = schoolContextService;
+    }
+
+    private SchoolContextService schoolContextService;
+
+
     public List<com.gradingSystem.GraadingSystem.dto.StudentRankingDTO> rankStudentsByForm(int form) {
         List<Object[]> rawData = marksrepo.getStudentTotalsByForm(form);
         MaxHeap heap = new MaxHeap(rawData.size());
@@ -64,6 +76,8 @@ public class RankingService {
      */
     public ResultsResponseDTO generateResults(List<Long> classIds, ExamType examType) {
 
+        School school = schoolContextService.getCurrentSchool();
+
         // 1. Load all classes and validate
         List<Classes> classes = classRepo.findAllById(classIds);
         if (classes.isEmpty()) throw new RuntimeException("No classes found for given IDs");
@@ -74,7 +88,11 @@ public class RankingService {
                 .collect(Collectors.toSet());
 
         // 3. Get all students in selected classes
-        List<Students> students = studentRepo.findByClassIdIn(classIds);
+        List<Students> students =
+                studentRepo.findBySchoolAndClassIdIn(
+                        school,
+                        classIds
+                );
         if (students.isEmpty()) throw new RuntimeException("No students found in selected classes");
 
         // 4. Build classId → Classes map for display

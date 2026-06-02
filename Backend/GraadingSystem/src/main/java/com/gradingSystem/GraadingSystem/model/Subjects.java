@@ -16,15 +16,32 @@ public class Subjects {
     @Column(name = "subject_name", nullable = false, length = 20)
     private String subjectName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id")
+    private School school;
 
 
+    public Subjects(Long subjectId, String subjectName, School school) {
+        this.subjectId = subjectId;
+        this.subjectName = subjectName;
+        this.school = school;
+    }
 
-    // Correct getter/setter matching the field name
     public Long getSubjectId() {
+
         return subjectId;
     }
 
+    public School getSchool() {
+        return school;
+    }
+
+    public void setSchool(School school) {
+        this.school = school;
+    }
+
     public void setSubjectId(Long subjectId) {
+
         this.subjectId = subjectId;
     }
 
@@ -36,11 +53,4 @@ public class Subjects {
         this.subjectName = subjectName;
     }
 
-    @Override
-    public String toString() {
-        return "Subjects{" +
-                "subjectId=" + subjectId +
-                ", subjectName='" + subjectName + '\'' +
-                '}';
-    }
 }

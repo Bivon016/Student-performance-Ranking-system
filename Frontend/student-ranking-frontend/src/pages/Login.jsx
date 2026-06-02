@@ -11,37 +11,25 @@ const Login = () => {
   const [error, setError]             = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+ const handleLogin = async (e) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      // login() in api.js now:
-      //   - POSTs to /auth/login
-      //   - parses { token, role, assignments }
-      //   - stores all three in localStorage
-      //   - returns the data object
-      await login(username, password);
-
-      // Store username for display purposes (Profile page etc.)
-      localStorage.setItem('username', username);
-
-      navigate('/');
-    } catch (err) {
-      console.error(err);
-      if (err.message === 'Login failed') {
-        setError('Invalid username or password.');
-      } else {
-        setError('Failed to connect to server.');
-      }
+  try {
+    await login(username, password);
+    navigate('/');
+  } catch (err) {
+    console.error(err);
+    if (err.message === 'Login failed') {
+      setError('Invalid username or password.');
+    } else {
+      setError('Failed to connect to server.');
     }
-               console.log(localStorage.getItem('token'))
-console.log(localStorage.getItem('role'))
-console.log(localStorage.getItem('assignments'))
-
-    setLoading(false);
-  };
+  } finally {
+    setLoading(false);  // ✅ move here so it always runs
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">

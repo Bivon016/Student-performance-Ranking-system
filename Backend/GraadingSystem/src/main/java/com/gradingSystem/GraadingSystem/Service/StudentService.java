@@ -1,6 +1,7 @@
 package com.gradingSystem.GraadingSystem.Service;
 
 import com.gradingSystem.GraadingSystem.Repository.StudentRepo;
+import com.gradingSystem.GraadingSystem.model.School;
 import com.gradingSystem.GraadingSystem.model.Students;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,23 +19,40 @@ public class StudentService {
 
     @Autowired
     public ClassRepo classRepo;
+    @Autowired
+    private SchoolContextService schoolContextService;
 
     public Students addStudent(Students students) {
+        School school = schoolContextService.getCurrentSchool();
+        students.setSchool(school);
 
         return studentRepo.save(students);
     }
-
     public Students viewStudent(Long id) {
 
-        return studentRepo.findById(id).orElse(null);
+        School school = schoolContextService.getCurrentSchool();
+
+        return studentRepo.findByIdAndSchool(id, school)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Student not found"
+                        )
+                );
     }
 
-    public List<Students> viewAllStudents() {
-        return studentRepo.findAll();
-    }
+
+        public List<Students> viewAllStudents() {
+
+            School school = schoolContextService.getCurrentSchool();
+
+            return studentRepo.findBySchool(school);
+        }
+
     public List<Students> viewAllStudentsByGrade(Long classId) {
 
-        classRepo.findById(classId)
+        School school = schoolContextService.getCurrentSchool();
+        classRepo.findByClassIdAndSchool(classId, school)
                 .orElseThrow(() ->
                         new ResponseStatusException(
                                 HttpStatus.NOT_FOUND,
@@ -42,16 +60,18 @@ public class StudentService {
                         )
                 );
 
-        return studentRepo.findByClassId(classId);
+        return studentRepo.findBySchoolAndClassId(school,classId);
     }
     public void deleteStudent(Long id) {
-        Students student = studentRepo.findById(id)
+        School school = schoolContextService.getCurrentSchool();
+        Students student = studentRepo.findByIdAndSchool(id,school)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
         studentRepo.delete(student);
     }
 
     public Students updateStudents(Long id, Students newData) {
-        Students student = studentRepo.findById(id)
+        School school = schoolContextService.getCurrentSchool();
+        Students student = studentRepo.findByIdAndSchool(id,school)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student does not exist"));
 
         student.setFirstName(newData.getFirstName());
@@ -62,6 +82,8 @@ public class StudentService {
         return studentRepo.save(student);
     }
     public List<Students> addStudentsBatch(List<Students> students) {
+        School school = schoolContextService.getCurrentSchool();
+        students.forEach(student -> {student.setSchool(school);});
         return studentRepo.saveAll(students);
     }
 }

@@ -23,6 +23,26 @@ public class Students {
     @Column(name = "class_id")
     private Long classId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id")
+    private School school;
+
+    public School getSchool() {
+        return school;
+    }
+
+    public void setSchool(School school) {
+        this.school = school;
+    }
+    public Students(Long id, School school, Long classId, String gender, String secondName, String firstName) {
+        this.id = id;
+        this.school = school;
+        this.classId = classId;
+        this.gender = gender;
+        this.secondName = secondName;
+        this.firstName = firstName;
+    }
+
     public Long getId() {
         return id;
     }
@@ -51,6 +71,8 @@ public class Students {
         return gender;
     }
 
+
+
     public void setGender(String gender) {
         this.gender = gender;
     }
@@ -63,14 +85,5 @@ public class Students {
         this.classId = classId;
     }
 
-    @Override
-    public String toString() {
-        return "Students{" +
-                "id=" + id +
-                ", firstName='" + firstName + '\'' +
-                ", secondName='" + secondName + '\'' +
-                ", gender='" + gender + '\'' +
-                ", classId=" + classId +
-                '}';
-    }
+
 }
