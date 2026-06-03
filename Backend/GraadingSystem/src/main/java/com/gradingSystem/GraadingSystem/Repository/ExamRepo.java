@@ -28,4 +28,9 @@ public interface ExamRepo extends JpaRepository<Exam, Long> {
                                        @Param("examType") ExamType examType);
     List<Exam> findBySchoolAndSubjectAndClassId(School school, Subjects subject, Long classId);
     List<Exam> findBySchool(School school);
+
+    @Query("SELECT e FROM Exam e JOIN FETCH e.subject WHERE e.form IN :forms AND e.examType = :examType AND e.school = :school")
+    List<Exam> findByFormInAndExamTypeAndSchool(@Param("forms") Set<Integer> forms,
+                                                @Param("examType") ExamType examType,
+                                                @Param("school") School school);
 }

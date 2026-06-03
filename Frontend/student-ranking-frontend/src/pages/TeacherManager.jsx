@@ -1,22 +1,21 @@
 import { useState, useEffect } from "react";
-import { apiFetch } from "../utils/api";
-import { getAllSubjects, getAllClasses } from "../services/api";
+import {
+  getAllTeachers,
+  getAllUsers,
+  getTeacherAssignments,
+  addTeacher,
+  deleteTeacher,
+  linkUserToTeacher,
+  addTeacherAssignment,
+  deleteTeacherAssignment,
+  getAllSubjects,
+  getAllClasses,
+} from "../services/api";
 import {
   Users, Plus, Trash2, Link, BookOpen,
   ChevronDown, ChevronUp, CheckCircle,
   UserCheck, X, ShieldCheck,
 } from "lucide-react";
-
-const BASE = "http://localhost:8080";
-
-const fetchAllTeachers    = ()            => apiFetch(`${BASE}/teachers/all`).then((r) => r.json());
-const fetchTeacherUsers   = ()            => apiFetch(`${BASE}/users/teachers`).then((r) => r.json());
-const fetchAssignments    = (tid)         => apiFetch(`${BASE}/teachers/${tid}/assignments`).then((r) => r.json());
-const postTeacher         = (body)        => apiFetch(`${BASE}/teachers/add`,               { method: "POST", body: JSON.stringify(body) });
-const putLinkUser         = (tid, userId) => apiFetch(`${BASE}/teachers/${tid}/link-user`,  { method: "PUT",  body: JSON.stringify({ userId }) });
-const postAssignment      = (tid, body)   => apiFetch(`${BASE}/teachers/${tid}/assignments`,{ method: "POST", body: JSON.stringify(body) });
-const deleteAssignmentReq = (aid)         => apiFetch(`${BASE}/teachers/assignments/${aid}`,{ method: "DELETE" });
-const deleteTeacherReq    = (tid)         => apiFetch(`${BASE}/teachers/delete/${tid}`,     { method: "DELETE" });
 
 const TeacherManager = () => {
   const [teachers,     setTeachers]     = useState([]);
@@ -24,6 +23,7 @@ const TeacherManager = () => {
   const [subjects,     setSubjects]     = useState([]);
   const [classes,      setClasses]      = useState([]);
   const [loading,      setLoading]      = useState(true);
+  const [loadError,    setLoadError]    = useState(null);
 
   const [expanded,           setExpanded]           = useState({});
   const [assignments,        setAssignments]        = useState({});
@@ -44,24 +44,36 @@ const TeacherManager = () => {
 
   useEffect(() => {
     Promise.all([
-      fetchAllTeachers(),
-      fetchTeacherUsers(),
+      getAllTeachers(),
+      getAllUsers(),       // returns ALL users; we filter to ROLE_TEACHER below
       getAllSubjects(),
       getAllClasses(),
     ])
       .then(([t, u, s, c]) => {
-        setTeachers(t);
-        setTeacherUsers(u);
-        setSubjects(s);
-        setClasses(c);
+        setTeachers(Array.isArray(t) ? t : []);
+        // getAllUsers returns every user — keep only those with the teacher role
+        const allUsers = Array.isArray(u) ? u : [];
+        setTeacherUsers(
+          allUsers.filter(
+            (user) =>
+              user.role === "ROLE_TEACHER" ||
+              user.role === "TEACHER" ||
+              // fallback: include everyone if no role field exists
+              (!user.role)
+          )
+        );
+        setSubjects(Array.isArray(s) ? s : []);
+        setClasses(Array.isArray(c) ? c : []);
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error("Failed to load TeacherManager data:", err);
+        setLoadError(err.message || "Failed to load data.");
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const toggleExpand = async (teacherId) => {
-    const isOpen = expanded[teacherId];
-    if (isOpen) {
+    if (expanded[teacherId]) {
       setExpanded((prev) => ({ ...prev, [teacherId]: false }));
       return;
     }
@@ -69,10 +81,11 @@ const TeacherManager = () => {
     if (!assignments[teacherId]) {
       setLoadingAssignments((prev) => ({ ...prev, [teacherId]: true }));
       try {
-        const data = await fetchAssignments(teacherId);
-        setAssignments((prev) => ({ ...prev, [teacherId]: data }));
+        const data = await getTeacherAssignments(teacherId);
+        setAssignments((prev) => ({ ...prev, [teacherId]: Array.isArray(data) ? data : [] }));
       } catch (err) {
-        console.error(err);
+        console.error("Failed to load assignments:", err);
+        setAssignments((prev) => ({ ...prev, [teacherId]: [] }));
       } finally {
         setLoadingAssignments((prev) => ({ ...prev, [teacherId]: false }));
       }
@@ -86,9 +99,7 @@ const TeacherManager = () => {
     }
     setAddingTeacher(true);
     try {
-      const res = await postTeacher(newTeacher);
-      if (!res.ok) throw new Error();
-      const created = await res.json();
+      const created = await addTeacher(newTeacher);
       setTeachers((prev) => [...prev, created]);
       setNewTeacher({ firstName: "", secondName: "", email: "" });
       setShowAddTeacher(false);
@@ -102,8 +113,7 @@ const TeacherManager = () => {
   const handleDeleteTeacher = async (teacherId) => {
     if (!window.confirm("Delete this teacher? This will also remove all their assignments.")) return;
     try {
-      const res = await deleteTeacherReq(teacherId);
-      if (!res.ok) throw new Error();
+      await deleteTeacher(teacherId);
       setTeachers((prev) => prev.filter((t) => t.id !== teacherId));
     } catch {
       alert("Failed to delete teacher.");
@@ -114,10 +124,8 @@ const TeacherManager = () => {
     if (!linkUserId) { alert("Select a user account."); return; }
     setLinking(true);
     try {
-      const res = await putLinkUser(linkModal, Number(linkUserId));
-      if (!res.ok) throw new Error();
-      const updated = await res.json();
-      setTeachers((prev) => prev.map((t) => t.id === linkModal ? updated : t));
+      const updated = await linkUserToTeacher(linkModal, Number(linkUserId));
+      setTeachers((prev) => prev.map((t) => (t.id === linkModal ? updated : t)));
       setLinkModal(null);
       setLinkUserId("");
     } catch {
@@ -131,15 +139,10 @@ const TeacherManager = () => {
     if (!newSubjectId || !newClassId) { alert("Select both a subject and a class."); return; }
     setAddingAssign(true);
     try {
-      const res = await postAssignment(teacherId, {
+      const created = await addTeacherAssignment(teacherId, {
         subjectId: Number(newSubjectId),
         classId:   Number(newClassId),
       });
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg);
-      }
-      const created = await res.json();
       setAssignments((prev) => ({
         ...prev,
         [teacherId]: [...(prev[teacherId] ?? []), created],
@@ -148,9 +151,11 @@ const TeacherManager = () => {
       setNewClassId("");
       setAssignPanel(null);
     } catch (err) {
-      alert(err.message?.includes("already exists")
-        ? "This teacher is already assigned to that subject and class."
-        : "Failed to add assignment.");
+      alert(
+        err.message?.includes("already exists")
+          ? "This teacher is already assigned to that subject and class."
+          : "Failed to add assignment."
+      );
     } finally {
       setAddingAssign(false);
     }
@@ -159,8 +164,7 @@ const TeacherManager = () => {
   const handleRemoveAssignment = async (teacherId, assignmentId) => {
     if (!window.confirm("Remove this assignment?")) return;
     try {
-      const res = await deleteAssignmentReq(assignmentId);
-      if (!res.ok) throw new Error();
+      await deleteTeacherAssignment(assignmentId);
       setAssignments((prev) => ({
         ...prev,
         [teacherId]: prev[teacherId].filter((a) => a.id !== assignmentId),
@@ -175,14 +179,23 @@ const TeacherManager = () => {
   );
 
   const availableUsers = teacherUsers.filter(
-    (u) => !linkedUserIds.has(u.id) ||
-           (linkModal && teachers.find((t) => t.id === linkModal)?.user?.id === u.id)
+    (u) =>
+      !linkedUserIds.has(u.id) ||
+      (linkModal && teachers.find((t) => t.id === linkModal)?.user?.id === u.id)
   );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-gray-500">Loading…</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-red-500">Error: {loadError}</p>
       </div>
     );
   }
@@ -282,10 +295,10 @@ const TeacherManager = () => {
         ) : (
           <ul className="divide-y divide-gray-100">
             {teachers.map((teacher) => {
-              const isExpanded        = expanded[teacher.id];
+              const isExpanded         = expanded[teacher.id];
               const teacherAssignments = assignments[teacher.id] ?? [];
-              const isLoadingA        = loadingAssignments[teacher.id];
-              const isAssignOpen      = assignPanel === teacher.id;
+              const isLoadingA         = loadingAssignments[teacher.id];
+              const isAssignOpen       = assignPanel === teacher.id;
 
               return (
                 <li key={teacher.id}>
@@ -396,7 +409,7 @@ const TeacherManager = () => {
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           {teacherAssignments.map((a) => (
-                            <div key={`${a.subjectId}-${a.classId}`}  // ✅ composite key
+                            <div key={`${a.subjectId}-${a.classId}`}
                               className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-700 shadow-sm">
                               <BookOpen size={12} className="text-blue-500" />
                               <span className="font-medium">{a.subjectName}</span>

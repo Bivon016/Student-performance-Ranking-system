@@ -100,7 +100,7 @@ public class RankingService {
                 .collect(Collectors.toMap(Classes::getClassId, c -> c));
 
         // 5. Get all subjects (all subjects that have exams for these forms + this examType)
-        List<Exam> relevantExams = examRepo.findByFormInAndExamType(formNumbers, examType);
+        List<Exam> relevantExams = examRepo.findByFormInAndExamTypeAndSchool(formNumbers, examType, school);
         if (relevantExams.isEmpty()) throw new RuntimeException(
                 "No exams of type " + examType + " found for the selected classes");
 

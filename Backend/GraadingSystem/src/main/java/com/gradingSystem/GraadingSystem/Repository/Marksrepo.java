@@ -37,7 +37,7 @@ public interface Marksrepo extends JpaRepository<Marks, Long> {
     """)
     List<Object[]> getStudentTotalsByForm(@Param("classId") int classId);
 
-
+    void deleteByStudent_Id(Long studentId);
     @Query("""
     SELECT m FROM Marks m
     WHERE m.student = :student

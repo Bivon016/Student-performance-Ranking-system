@@ -1,5 +1,6 @@
 package com.gradingSystem.GraadingSystem.Controller;
 
+import com.gradingSystem.GraadingSystem.Repository.SchoolRepo;
 import com.gradingSystem.GraadingSystem.Repository.TeacherAssignmentRepository;
 import com.gradingSystem.GraadingSystem.Repository.TeachersRepo;
 import com.gradingSystem.GraadingSystem.Repository.UsersRepo;
@@ -17,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.HashMap;
 import java.util.List;
@@ -32,39 +34,47 @@ public class AuthController {
     private final TeachersRepo teachersRepo;
     private final TeacherAssignmentRepository assignmentRepo;
     private final SchoolContextService  schoolContextService;
+    private final SchoolRepo schoolRepo;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtService jwtService,
                           UsersRepo usersRepo,
                           TeachersRepo teachersRepo,
-                          TeacherAssignmentRepository assignmentRepo,SchoolContextService schoolContextService) {
+                          TeacherAssignmentRepository assignmentRepo,SchoolContextService schoolContextService,SchoolRepo schoolRepo) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.usersRepo = usersRepo;
         this.teachersRepo = teachersRepo;
         this.assignmentRepo = assignmentRepo;
         this.schoolContextService = schoolContextService;
+        this.schoolRepo = schoolRepo;
     }
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody SignupRequest request) {
 
-        // ✅ Authenticate first
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getUsername(), request.getPassword()
                 )
         );
 
-        // ✅ Now we can safely load the user
         User user = usersRepo.findByUsername(request.getUsername());
-
-        // ✅ Get school directly from user, not from security context
-        School school = user.getSchool();
-        if (school == null) throw new RuntimeException("User is not linked to a school");
-
         String token = jwtService.generateToken(request.getUsername());
 
+        // ✅ No school yet — return flag instead of throwing
+        School school = user.getSchool();
+        if (school == null) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("token",          token);
+            response.put("role",           user.getRole());
+            response.put("assignments",    List.of());
+            response.put("username",       user.getUsername());
+            response.put("requiresSchool", true);          // ✅ frontend reads this
+            return ResponseEntity.ok(response);
+        }
+
+        // Normal login — school exists
         Teachers teacher = teachersRepo.findByUserIdAndSchool(user.getId(), school)
                 .orElse(null);
 
@@ -83,17 +93,19 @@ public class AuthController {
         }
 
         Map<String, Object> response = new HashMap<>();
-        response.put("token", token);
-        response.put("role", user.getRole());
+        response.put("token",       token);
+        response.put("role",        user.getRole());
         response.put("assignments", assignments);
-        response.put("username", user.getUsername());
+        response.put("username",    user.getUsername());
 
         return ResponseEntity.ok(response);
     }
+
     @GetMapping("/users/all")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(usersRepo.findAll());
+        School school = schoolContextService.getCurrentSchool();
+        return ResponseEntity.ok(usersRepo.findBySchool(school));
     }
 
     @PutMapping("/users/{id}/role")
@@ -105,5 +117,20 @@ public class AuthController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setRole(Role.valueOf(body.get("role")));
         return ResponseEntity.ok(usersRepo.save(user));
+    }
+    @PutMapping("/users/link-school")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> linkSchool(
+            @RequestBody Map<String, String> body,
+            Authentication authentication) {
+        User user = usersRepo.findByUsername(authentication.getName());
+        School school = schoolRepo.findBySchoolCode(body.get("schoolCode"))
+                .orElseThrow(() -> new RuntimeException("School not found"));
+        user.setSchool(school);
+        usersRepo.save(user);
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Joined successfully");
+        response.put("schoolName", school.getSchoolName());
+        return ResponseEntity.ok(response);
     }
 }

@@ -17,8 +17,8 @@ public class AcademicPeriodController {
         this.academicPeriodService = academicPeriodService;
     }
     @PostMapping("/newPeriod")
-    @PreAuthorize("hasRole('PRINCIPAL')")
-    public AcademicPeriod createAcademicPeriod(@RequestBody AcademicPeriod academicPeriod) {
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+      public AcademicPeriod createAcademicPeriod(@RequestBody AcademicPeriod academicPeriod) {
         return academicPeriodService.createAcademicPeriod(academicPeriod);
     }
 
@@ -29,8 +29,8 @@ public class AcademicPeriodController {
     }
 
     @PutMapping("/{id}/setCurrent")
-    @PreAuthorize("hasRole('PRINCIPAL')")
-    public AcademicPeriod setCurrentPeriod(@PathVariable Long id){
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')") // ✅ was hasRole
+    public AcademicPeriod setCurrentPeriod(@PathVariable Long id) {
         return academicPeriodService.setCurrentPeriod(id);
     }
 

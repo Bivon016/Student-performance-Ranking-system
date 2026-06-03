@@ -1,9 +1,12 @@
 package com.gradingSystem.GraadingSystem.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+
 public class School {
 
     @Id
@@ -16,6 +19,7 @@ public class School {
     @Column(unique = true)
     private String schoolCode;
 
+    @Column(columnDefinition = "LONGTEXT")
     private String schoolLogo;
 
     @Enumerated(EnumType.STRING)
@@ -32,7 +36,7 @@ public class School {
 
     private String motto;
 
-    private boolean active;
+    private Boolean active;
 
     private LocalDateTime createdAt;
 
@@ -45,7 +49,7 @@ public class School {
     public School() {}
 
     public School(Long schoolId, String schoolName, String schoolCode, String schoolLogo, SchoolType schoolType, String city, String country,
-                  String phoneNumber, String postalAddress, String email, String motto, boolean active, LocalDateTime createdAt) {
+                  String phoneNumber, String postalAddress, String email, String motto, Boolean active, LocalDateTime createdAt) {
         this.schoolId = schoolId;
         this.schoolName = schoolName;
         this.schoolCode = schoolCode;
@@ -68,9 +72,9 @@ public class School {
         this.schoolId = schoolId;
     }
 
-    public boolean isActive() {
+    public Boolean isActive() {
         return active; }
-    public void setActive(boolean active) {
+    public void setActive(Boolean active) {
         this.active = active; }
 
     public String getSchoolName() {

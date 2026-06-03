@@ -1,7 +1,14 @@
 package com.gradingSystem.GraadingSystem.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+
+
+import java.util.ArrayList;
+import java.util.List;
 
 @NoArgsConstructor
 @Entity
@@ -16,9 +23,16 @@ public class Subjects {
     @Column(name = "subject_name", nullable = false, length = 20)
     private String subjectName;
 
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private School school;
+
+    // Subjects.java
+    @OneToMany(mappedBy = "subject", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore  // ← change from @JsonIgnoreProperties to full @JsonIgnore
+    private List<Exam> exams = new ArrayList<>();
 
 
     public Subjects(Long subjectId, String subjectName, School school) {
@@ -27,21 +41,12 @@ public class Subjects {
         this.school = school;
     }
 
+    // getters & setters
     public Long getSubjectId() {
-
         return subjectId;
     }
 
-    public School getSchool() {
-        return school;
-    }
-
-    public void setSchool(School school) {
-        this.school = school;
-    }
-
     public void setSubjectId(Long subjectId) {
-
         this.subjectId = subjectId;
     }
 
@@ -53,4 +58,19 @@ public class Subjects {
         this.subjectName = subjectName;
     }
 
+    public School getSchool() {
+        return school;
+    }
+
+    public void setSchool(School school) {
+        this.school = school;
+    }
+
+    public List<Exam> getExams() {
+        return exams;
+    }
+
+    public void setExams(List<Exam> exams) {
+        this.exams = exams;
+    }
 }

@@ -1,7 +1,12 @@
 package com.gradingSystem.GraadingSystem.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import org.yaml.snakeyaml.error.Mark;
+
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "exams")
@@ -31,17 +36,31 @@ public class Exam {
 
     @Column(name = "form", nullable = false)
     private int form;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subject_id", referencedColumnName = "subject_id", nullable = false)
+    @JsonIgnoreProperties({"exams", "school", "hibernateLazyInitializer", "handler"}) // ← stops subject from re-serializing exams
     private Subjects subject;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id", nullable = false)
-    private School  school;
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private School school;
+
+    @OneToMany(
+            mappedBy = "exam",        // ✅ matches "private Exam exam" in Marks.java
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    @JsonIgnoreProperties({"exam", "hibernateLazyInitializer", "handler"})
+    private List<Marks> marks = new ArrayList<>();
+
+    public List<Marks> getMarks() { return marks; }
+    public void setMarks(List<Marks> marks) { this.marks = marks; }
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "academic_period_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private AcademicPeriod academicPeriod;
 
     // ── Constructors ──────────────────────────────────────────────────────────

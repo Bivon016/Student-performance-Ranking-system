@@ -26,6 +26,7 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
             @Param("subjectId") Long subjectId,
             @Param("classId") Long classId
     );
+    void deleteBySubject_SubjectId(Long subjectId);
 
     @Query("""
         SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END

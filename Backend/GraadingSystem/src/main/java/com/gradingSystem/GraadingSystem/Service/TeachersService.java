@@ -8,10 +8,15 @@ import com.gradingSystem.GraadingSystem.Repository.UsersRepo;
 import com.gradingSystem.GraadingSystem.dto.AssignmentDTO;
 import com.gradingSystem.GraadingSystem.dto.TeacherAssignmentRequest;
 import com.gradingSystem.GraadingSystem.model.School;
+import com.gradingSystem.GraadingSystem.model.Subjects;
 import com.gradingSystem.GraadingSystem.model.TeacherAssignment;
 import com.gradingSystem.GraadingSystem.model.Teachers;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import com.gradingSystem.GraadingSystem.Repository.TeacherAssignmentRepository;
+import org.springframework.web.server.ResponseStatusException;
 
 
 import java.util.List;
@@ -26,8 +31,10 @@ public class TeachersService {
      private TeacherAssignmentRepository assignmentRepo;
     private final SchoolContextService schoolContextService;
 
+
+
     public TeachersService(SchoolContextService schoolContextService, TeacherAssignmentRepository assignmentRepo,
-                           ClassRepo classRepo, SubjectRepo subjectRepo, UsersRepo usersRepo, TeachersRepo teachersRepo) {
+                           ClassRepo classRepo, SubjectRepo subjectRepo, UsersRepo usersRepo, TeachersRepo teachersRepo, TeacherAssignmentRepository teacherAssignmentRepository) {
         this.schoolContextService = schoolContextService;
         this.assignmentRepo = assignmentRepo;
         this.classRepo = classRepo;
@@ -130,4 +137,6 @@ public class TeachersService {
         }
         assignmentRepo.deleteById(assignmentId);
     }
+
+
 }

@@ -23,7 +23,7 @@ public class TeacherController {
     // ── CRUD ──────────────────────────────────────────────────────────────────
 
     @PostMapping("/add")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<Teachers> addTeacher(@RequestBody Teachers teacher) {
         System.out.println(teacher);
         return ResponseEntity.ok(teachersService.addTeacher(teacher));
@@ -32,13 +32,13 @@ public class TeacherController {
 
     // ✅ Fixed: was mapped to /teachers/teachers
     @GetMapping("/all")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<List<Teachers>> getAllTeachers() {
         return ResponseEntity.ok(teachersService.getAllTeachers());
     }
 
     @DeleteMapping("/delete/{id}")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<String> deleteTeacher(@PathVariable Long id) {
         teachersService.deleteTeacher(id);
         return ResponseEntity.ok("Teacher deleted successfully");
@@ -47,7 +47,7 @@ public class TeacherController {
     // ── Link teacher → user account ───────────────────────────────────────────
 
     @PutMapping("/{teacherId}/link-user")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<Teachers> linkUser(
             @PathVariable Long teacherId,
             @RequestBody LinkUserRequest request) {
@@ -57,7 +57,7 @@ public class TeacherController {
     // ── Subject+class assignments ─────────────────────────────────────────────
 
     @PostMapping("/{teacherId}/assignments")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<AssignmentDTO> addAssignment(
             @PathVariable Long teacherId,
             @RequestBody TeacherAssignmentRequest request) {
@@ -65,14 +65,14 @@ public class TeacherController {
     }
 
     @GetMapping("/{teacherId}/assignments")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<List<AssignmentDTO>> getAssignments(
             @PathVariable Long teacherId) {
         return ResponseEntity.ok(teachersService.getAssignments(teacherId));
     }
 
     @DeleteMapping("/assignments/{assignmentId}")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<String> deleteAssignment(
             @PathVariable Long assignmentId) {
         teachersService.deleteAssignment(assignmentId);

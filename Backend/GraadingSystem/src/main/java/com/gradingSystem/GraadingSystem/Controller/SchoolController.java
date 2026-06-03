@@ -1,27 +1,34 @@
 package com.gradingSystem.GraadingSystem.Controller;
 
+import com.gradingSystem.GraadingSystem.Repository.UsersRepo;
 import com.gradingSystem.GraadingSystem.Service.SchoolService;
 import com.gradingSystem.GraadingSystem.model.School;
+import com.gradingSystem.GraadingSystem.model.User;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/school")
-@CrossOrigin(origins = "http://localhost:5173")
 public class SchoolController {
 
     private final SchoolService schoolService;
+    private final UsersRepo usersRepo;
 
-    public SchoolController(SchoolService schoolService) {
+    public SchoolController(SchoolService schoolService, UsersRepo usersRepo) {
         this.schoolService = schoolService;
+        this.usersRepo = usersRepo;
     }
     @PostMapping("/register")
-    @PreAuthorize("hasRole('PRINCIPAL')")
-    public ResponseEntity<School> registerSchool(@RequestBody School school) {
-        return ResponseEntity.ok(schoolService.registerSchool(school));
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+    public ResponseEntity<School> registerSchool(
+            @RequestBody School school,
+            Authentication authentication) {
+        User creator = usersRepo.findByUsername(authentication.getName());
+        return ResponseEntity.ok(schoolService.registerSchool(school, creator));
     }
     @GetMapping("/all")
     @PreAuthorize("isAuthenticated()")
@@ -42,7 +49,7 @@ public class SchoolController {
     }
 
     @PutMapping("/update/{id}")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<School> updateSchool(
             @PathVariable Long id,
             @RequestBody School school) {
@@ -50,9 +57,14 @@ public class SchoolController {
     }
 
     @DeleteMapping("/delete/{id}")
-    @PreAuthorize("hasRole('PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
     public ResponseEntity<String> deleteSchool(@PathVariable Long id) {
         schoolService.deleteSchool(id);
         return ResponseEntity.ok("School deactivated successfully");
+    }
+    @GetMapping("/current")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<School> getCurrentSchool() {
+        return ResponseEntity.ok(schoolService.getCurrentSchoolForUser());
     }
 }

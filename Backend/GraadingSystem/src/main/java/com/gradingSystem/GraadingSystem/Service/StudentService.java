@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import com.gradingSystem.GraadingSystem.Repository.ClassRepo;
 import org.springframework.web.server.ResponseStatusException;
+import com.gradingSystem.GraadingSystem.Repository.Marksrepo;
+import jakarta.transaction.Transactional;
 
 import java.util.List;
 
@@ -16,6 +18,9 @@ public class StudentService {
 
     @Autowired
     public StudentRepo studentRepo;
+
+    @Autowired
+    private Marksrepo marksrepo;
 
     @Autowired
     public ClassRepo classRepo;
@@ -62,10 +67,12 @@ public class StudentService {
 
         return studentRepo.findBySchoolAndClassId(school,classId);
     }
+    @Transactional
     public void deleteStudent(Long id) {
         School school = schoolContextService.getCurrentSchool();
-        Students student = studentRepo.findByIdAndSchool(id,school)
+        Students student = studentRepo.findByIdAndSchool(id, school)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+        marksrepo.deleteByStudent_Id(id);
         studentRepo.delete(student);
     }
 

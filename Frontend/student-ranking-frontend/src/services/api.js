@@ -11,7 +11,7 @@ const RANKING_BASE     = `${BASE}/ranking`;
 const AUTH_BASE        = `${BASE}/auth`;
 const PERIOD_BASE      = `${BASE}/period`;
 const USERS_BASE      =  `${BASE}/users`
-
+const SCHOOL_BASE = `${BASE}/school`;
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -28,6 +28,10 @@ export const addTeacherAssignment  = (teacherId, body)   => post(`${BASE}/teache
 export const deleteTeacherAssignment = (assignmentId)    => del(`${BASE}/teachers/assignments/${assignmentId}`)
 export const getAllUsers = () => get(`${AUTH_BASE}/users/all`)
 export const updateRole  = (id, role) => put(`${AUTH_BASE}/users/${id}/role`, { role })
+export const getCurrentSchool = () => get(`${SCHOOL_BASE}/current`);
+
+export const linkSchool = (schoolCode) =>
+  put(`${AUTH_BASE}/users/link-school`, { schoolCode });
 
 export async function login(username, password) {
   const res = await fetch(`${AUTH_BASE}/login`, {
@@ -36,19 +40,24 @@ export async function login(username, password) {
     body: JSON.stringify({ username, password }),
   });
   if (!res.ok) throw new Error("Login failed");
-  const data = await res.json(); // { token, role, assignments }
-  
+  const data = await res.json();
+
+  // Always store token (needed for /select-school API calls)
   localStorage.setItem("token",       data.token);
   localStorage.setItem("role",        data.role);
-  localStorage.setItem("assignments", JSON.stringify(data.assignments));
-
-  
-  // ✅ Add this — save user object so Layout.jsx can read it
+  localStorage.setItem("assignments", JSON.stringify(data.assignments ?? []));
   localStorage.setItem("user", JSON.stringify({
-    name:  data.name  || data.username || username,
+    name:  data.name || data.username || username,
     email: data.email || '',
     role:  data.role,
   }));
+
+  // ✅ Flag for redirect
+  if (data.requiresSchool) {
+    localStorage.setItem("requiresSchool", "true");
+  } else {
+    localStorage.removeItem("requiresSchool");
+  }
 
   return data;
 }

@@ -41,7 +41,9 @@ const EXAM_TYPE_LABELS = {
 
 const Marks = () => {
   const role        = getRole();
-  const isAdmin     = role === "ADMIN";
+const isPrincipal = role === "ROLE_PRINCIPAL"
+const isDeputy    = role === "ROLE_DEPUTY"
+const isAdmin     = isPrincipal || isDeputy
   const assignments = getAssignments();
 
   // ── Shared ──────────────────────────────────────────────────────────────────

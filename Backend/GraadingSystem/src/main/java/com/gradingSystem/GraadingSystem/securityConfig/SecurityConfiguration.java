@@ -20,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.web.savedrequest.NullRequestCache;
 import java.util.List;
 
 @Configuration
@@ -39,18 +40,19 @@ public class SecurityConfiguration {
      public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
           http
-                  .cors(Customizer.withDefaults())   // ✅ ENABLE CORS
+                  .cors(Customizer.withDefaults())
                   .csrf(csrf -> csrf.disable())
                   .authorizeHttpRequests(auth -> auth
-                          .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // ✅ add this
-                          .requestMatchers("/auth/**",
-                                  "/public/**").permitAll()
+                          .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                          .requestMatchers("/auth/**", "/public/**").permitAll()
                           .anyRequest().authenticated()
-
                   )
                   .sessionManagement(session ->
                           session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                  );
+                  )
+                  // ✅ Add these two lines
+                  .securityContext(ctx -> ctx.requireExplicitSave(false))
+                  .requestCache(cache -> cache.requestCache(new NullRequestCache()));
 
           http.addFilterBefore(
                   new JwtAuthenticationFilter(jwtService, userDetailsService),

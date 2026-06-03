@@ -17,6 +17,8 @@ import Layout         from './components/Layout';
 import Login          from './pages/Login';
 import Signup         from './pages/Signup';
 import PrivateRoute   from './components/PrivateRoute';
+import SelectSchool from './pages/SelectSchool.jsx';
+
 
 
 function App() {
@@ -27,7 +29,7 @@ function App() {
         {/* Public */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-
+        <Route path="/select-school" element={<SelectSchool />} />
         {/* Protected */}
         <Route
           path="/"

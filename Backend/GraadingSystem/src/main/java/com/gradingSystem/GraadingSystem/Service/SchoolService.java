@@ -1,7 +1,9 @@
 package com.gradingSystem.GraadingSystem.Service;
 
 import com.gradingSystem.GraadingSystem.Repository.SchoolRepo;
+import com.gradingSystem.GraadingSystem.Repository.UsersRepo;
 import com.gradingSystem.GraadingSystem.model.School;
+import com.gradingSystem.GraadingSystem.model.User;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -11,9 +13,13 @@ import java.util.List;
 public class SchoolService {
 
     private final SchoolRepo schoolRepo;
+    private SchoolContextService schoolContextService;
+    private final UsersRepo usersRepo;
 
-    public SchoolService(SchoolRepo schoolRepo) {
+    public SchoolService(SchoolRepo schoolRepo,SchoolContextService schoolContextService,UsersRepo usersRepo) {
         this.schoolRepo = schoolRepo;
+        this.schoolContextService = schoolContextService;
+        this.usersRepo = usersRepo;
     }
 
     public School registerSchool(School school) {
@@ -55,39 +61,20 @@ public class SchoolService {
                 .orElseThrow(() -> new EntityNotFoundException("School not found"));
     }
 
-    public School updateSchool(Long schoolId, School updatedSchool) {
-
-        School school = schoolRepo.findById(schoolId)
-                .orElseThrow(() -> new EntityNotFoundException("School not found"));
-
-        if (updatedSchool.getSchoolName() != null)
-            school.setSchoolName(updatedSchool.getSchoolName());
-
-        if (updatedSchool.getSchoolLogo() != null)
-            school.setSchoolLogo(updatedSchool.getSchoolLogo());
-
-        if (updatedSchool.getSchoolType() != null)
-            school.setSchoolType(updatedSchool.getSchoolType());
-
-        if (updatedSchool.getCity() != null)
-            school.setCity(updatedSchool.getCity());
-
-        if (updatedSchool.getCountry() != null)
-            school.setCountry(updatedSchool.getCountry());
-
-        if (updatedSchool.getPostalAddress() != null)
-            school.setPostalAddress(updatedSchool.getPostalAddress());
-
-        if (updatedSchool.getPhoneNumber() != null)
-            school.setPhoneNumber(updatedSchool.getPhoneNumber());
-
-        if (updatedSchool.getEmail() != null)
-            school.setEmail(updatedSchool.getEmail());
-
-        if (updatedSchool.getMotto() != null)
-            school.setMotto(updatedSchool.getMotto());
-
-        return schoolRepo.save(school);
+    public School updateSchool(Long id, School updated) {
+        School existing = getSchoolById(id);
+        existing.setSchoolName(updated.getSchoolName());
+        existing.setSchoolCode(updated.getSchoolCode());
+        existing.setSchoolType(updated.getSchoolType());
+        existing.setCity(updated.getCity());
+        existing.setCountry(updated.getCountry());
+        existing.setPostalAddress(updated.getPostalAddress());
+        existing.setPhoneNumber(updated.getPhoneNumber());
+        existing.setEmail(updated.getEmail());
+        existing.setMotto(updated.getMotto());
+        existing.setSchoolLogo(updated.getSchoolLogo());
+        // active is NOT updated — preserves existing value
+        return schoolRepo.save(existing);
     }
 
     // =========================
@@ -104,5 +91,29 @@ public class SchoolService {
         // OPTION B (recommended for real systems):
          school.setActive(false);
          schoolRepo.save(school);
+    }
+
+    public School getCurrentSchoolForUser() {
+
+        return schoolContextService.getCurrentSchool();
+    }
+    public School registerSchool(School school, User creator) {
+        if (school.getSchoolName() == null || school.getSchoolName().isBlank())
+            throw new IllegalArgumentException("School name is required");
+        if (school.getSchoolCode() == null || school.getSchoolCode().isBlank())
+            throw new IllegalArgumentException("School code is required");
+        if (schoolRepo.existsBySchoolCode(school.getSchoolCode()))
+            throw new IllegalArgumentException("School code already exists");
+        if (schoolRepo.existsByEmail(school.getEmail()))
+            throw new IllegalArgumentException("Email already in use");
+
+        school.setActive(true);
+        School saved = schoolRepo.save(school);
+
+        // ✅ Auto-link the creating user to this school
+        creator.setSchool(saved);
+        usersRepo.save(creator);
+
+        return saved;
     }
 }

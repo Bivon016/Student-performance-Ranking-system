@@ -13,6 +13,15 @@ public class SignupRequest {
     private String username;
     private String role;
     private String password;
+    private String principalCode;
+
+    public String getPrincipalCode() {
+        return principalCode;
+    }
+
+    public void setPrincipalCode(String principalCode) {
+        this.principalCode = principalCode;
+    }
 
     public SignupRequest() {}
 
