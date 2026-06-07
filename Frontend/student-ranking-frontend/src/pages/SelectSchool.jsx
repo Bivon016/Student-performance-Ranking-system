@@ -35,7 +35,7 @@ export default function SelectSchool() {
   const [form, setForm] = useState({
     schoolName:    '',
     schoolCode:    '',
-    schoolType:    'SECONDARY',
+    schoolType:    'SENIORSEC',
     city:          '',
     country:       'Kenya',
     postalAddress: '',

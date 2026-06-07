@@ -11,6 +11,7 @@ import {
   getRole,
   canEditSubject,
   getAssignments,
+  getStudentEnrollment,
 } from "../services/api";
 import {
   Search, Plus, CheckCircle, FileText, X,
@@ -41,17 +42,18 @@ const EXAM_TYPE_LABELS = {
 
 const Marks = () => {
   const role        = getRole();
-const isPrincipal = role === "ROLE_PRINCIPAL"
-const isDeputy    = role === "ROLE_DEPUTY"
-const isAdmin     = isPrincipal || isDeputy
+  const isPrincipal = role === "ROLE_PRINCIPAL";
+  const isDeputy    = role === "ROLE_DEPUTY";
+  const isAdmin     = isPrincipal || isDeputy;
   const assignments = getAssignments();
 
   // ── Shared ──────────────────────────────────────────────────────────────────
-  const [loading,   setLoading]   = useState(true);
-  const [students,  setStudents]  = useState([]);
-  const [subjects,  setSubjects]  = useState([]);
-  const [classes,   setClasses]   = useState([]);
-  const [activeTab, setActiveTab] = useState("add");
+  const [loading,     setLoading]     = useState(true);
+  const [students,    setStudents]    = useState([]);
+  const [subjects,    setSubjects]    = useState([]);
+  const [classes,     setClasses]     = useState([]);
+  const [enrollments, setEnrollments] = useState([]); // { studentId, subjectId }
+  const [activeTab,   setActiveTab]   = useState("add");
 
   // ── ADD TAB ─────────────────────────────────────────────────────────────────
   const [addSubjectId,    setAddSubjectId]    = useState("");
@@ -79,16 +81,30 @@ const isAdmin     = isPrincipal || isDeputy
   const [editingValue,     setEditingValue]     = useState("");
 
   // ── Bootstrap ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    Promise.all([getAllStudents(), getAllSubjects(), getAllClasses()])
-      .then(([s, sub, cls]) => {
-        setStudents(s);
-        setSubjects(sub);
-        setClasses(cls);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+useEffect(() => {
+  Promise.all([getAllStudents(), getAllSubjects(), getAllClasses()])
+    .then(async ([s, sub, cls]) => {
+      setStudents(s);
+      setSubjects(sub);
+      setClasses(cls);
+
+      const results = await Promise.all(
+        s.map((student) =>
+          getStudentEnrollment(student.id)
+            .then((data) =>
+              (data.enrolledSubjects ?? []).map((subj) => ({
+                studentId: student.id,
+                subjectId: subj.subjectId,
+              }))
+            )
+            .catch(() => [])
+        )
+      );
+      setEnrollments(results.flat());
+    })
+    .catch(console.error)
+    .finally(() => setLoading(false));
+}, []);
 
   // ── Role-filtered subjects & classes ─────────────────────────────────────────
   const visibleSubjects = useMemo(() => {
@@ -115,6 +131,27 @@ const isAdmin     = isPrincipal || isDeputy
   const classMap = useMemo(() =>
     classes.reduce((acc, c) => { acc[c.classId] = c; return acc; }, {}),
   [classes]);
+
+  // ── Enrolled student IDs for the currently selected add-tab subject ──────────
+  // Only students enrolled in addSubjectId are shown in the marks entry table.
+  const enrolledStudentIds = useMemo(() => {
+    if (!addSubjectId) return new Set();
+    return new Set(
+      enrollments
+        .filter((e) => e.subjectId === Number(addSubjectId))
+        .map((e) => e.studentId)
+    );
+  }, [enrollments, addSubjectId]);
+
+  // ── Students in selected class who are also enrolled in the selected subject ──
+  const addClassStudents = useMemo(() => {
+    if (!addClassId || !addSubjectId) return [];
+    return students.filter(
+      (s) =>
+        s.classId === Number(addClassId) &&
+        enrolledStudentIds.has(s.id)
+    );
+  }, [students, addClassId, addSubjectId, enrolledStudentIds]);
 
   // ── Add tab: fetch exams when subject + class change ─────────────────────────
   useEffect(() => {
@@ -156,10 +193,6 @@ const isAdmin     = isPrincipal || isDeputy
   }, [viewExamId]);
 
   // ── Derived ──────────────────────────────────────────────────────────────────
-  const addClassStudents = addClassId
-    ? students.filter((s) => s.classId === Number(addClassId))
-    : [];
-
   const existingMarksMap = Object.fromEntries(
     existingMarks.map((m) => [m.studentId, m])
   );
@@ -228,7 +261,6 @@ const isAdmin     = isPrincipal || isDeputy
     setEditingMark(mark.marksId);
     setEditingValue(mark.marksValue);
   };
-
 
   const handleSaveEdit = async (marksId) => {
     try {
@@ -395,6 +427,7 @@ const isAdmin     = isPrincipal || isDeputy
                         setAddClassId("");
                         setAddExamId("");
                         setExistingMarks([]);
+                        setMarksInput({});
                       }}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">Select Subject</option>
@@ -499,6 +532,7 @@ const isAdmin     = isPrincipal || isDeputy
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
 
+                          {/* Pending students — enrolled in subject, no mark yet */}
                           {filteredPending.map((s) => {
                             const inputValue = marksInput[s.id];
                             const grade = inputValue === undefined || inputValue === ""
@@ -536,6 +570,7 @@ const isAdmin     = isPrincipal || isDeputy
                             );
                           })}
 
+                          {/* Done students — already have a mark */}
                           {filteredDone.map((s) => {
                             const existing = existingMarksMap[s.id];
                             const grade = getGradePoint(existing.marksValue);
@@ -604,6 +639,20 @@ const isAdmin     = isPrincipal || isDeputy
                       </button>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* No enrolled students in this class for this subject */}
+              {addExamId && addClassStudents.length === 0 && (
+                <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                  <ShieldAlert className="h-5 w-5 text-amber-500 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">No enrolled students</p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      No students in this class are enrolled in the selected subject.
+                      Go to <strong>Students → Enroll</strong> to set up subject enrollments.
+                    </p>
+                  </div>
                 </div>
               )}
 

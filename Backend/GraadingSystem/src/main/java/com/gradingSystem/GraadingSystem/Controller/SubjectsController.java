@@ -1,54 +1,54 @@
 package com.gradingSystem.GraadingSystem.Controller;
 
 import com.gradingSystem.GraadingSystem.Service.SubjectsService;
+import com.gradingSystem.GraadingSystem.dto.SubjectDTO;
 import com.gradingSystem.GraadingSystem.model.Subjects;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/subjects")
 public class SubjectsController {
 
-    @Autowired
-    private SubjectsService subjectsService;
+    private final SubjectsService subjectsService;
 
-    // ---------- ADD SUBJECT ----------
-    @PostMapping("/addSubjects")
-    @PreAuthorize("hasRole('PRINCIPAL')")
-    public Subjects addSubject(@RequestBody Subjects subject) {
-        return subjectsService.addSubject(subject);
+    public SubjectsController(SubjectsService subjectsService) {
+        this.subjectsService = subjectsService;
     }
 
-    // ---------- VIEW SINGLE SUBJECT ----------
+    @PostMapping("/addSubjects")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+    public ResponseEntity<SubjectDTO> addSubject(@RequestBody Subjects subject) {
+        return ResponseEntity.ok(subjectsService.addSubject(subject));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public Subjects viewSubject(@PathVariable Long id) {
-        return subjectsService.viewSubject(id);
+    public ResponseEntity<SubjectDTO> viewSubject(@PathVariable Long id) {
+        return ResponseEntity.ok(subjectsService.viewSubject(id));
     }
 
-    // ---------- VIEW ALL SUBJECTS ----------
     @GetMapping("/allSubjects")
     @PreAuthorize("isAuthenticated()")
-    public List<Subjects> viewAllSubjects() {
-        return subjectsService.viewAllSubjects();
+    public ResponseEntity<List<SubjectDTO>> viewAllSubjects() {
+        return ResponseEntity.ok(subjectsService.viewAllSubjects());
     }
 
-    // ---------- DELETE SUBJECT ----------
     @DeleteMapping("/delete/{id}")
-    @PreAuthorize("hasRole('PRINCIPAL')")
-    public String deleteSubject(@PathVariable Long id) {
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+    public ResponseEntity<String> deleteSubject(@PathVariable Long id) {
         subjectsService.deleteSubject(id);
-        return "Subject deleted successfully";
+        return ResponseEntity.ok("Subject deleted successfully");
     }
 
-    // ---------- UPDATE SUBJECT ----------
     @PutMapping("/update/{id}")
-    @PreAuthorize("hasRole('PRINCIPAL')")
-    public Subjects updateSubject(@PathVariable Long id, @RequestBody Subjects subject) {
-        return subjectsService.updateSubject(id, subject);
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+    public ResponseEntity<SubjectDTO> updateSubject(
+            @PathVariable Long id,
+            @RequestBody Subjects subject) {
+        return ResponseEntity.ok(subjectsService.updateSubject(id, subject));
     }
 }

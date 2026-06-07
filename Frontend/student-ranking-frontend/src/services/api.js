@@ -12,6 +12,8 @@ const AUTH_BASE        = `${BASE}/auth`;
 const PERIOD_BASE      = `${BASE}/period`;
 const USERS_BASE      =  `${BASE}/users`
 const SCHOOL_BASE = `${BASE}/school`;
+
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -29,6 +31,24 @@ export const deleteTeacherAssignment = (assignmentId)    => del(`${BASE}/teacher
 export const getAllUsers = () => get(`${AUTH_BASE}/users/all`)
 export const updateRole  = (id, role) => put(`${AUTH_BASE}/users/${id}/role`, { role })
 export const getCurrentSchool = () => get(`${SCHOOL_BASE}/current`);
+
+
+
+export const getAllSubjectGroups  = ()           => get(`${BASE}/subject-groups/all`);
+export const createSubjectGroup   = (group)      => post(`${BASE}/subject-groups/create`, group);
+export const updateSubjectGroup   = (id, group)  => put(`${BASE}/subject-groups/update/${id}`, group);
+export const deleteSubjectGroup   = (id)         => del(`${BASE}/subject-groups/delete/${id}`);
+
+// ─── Enrollment ───────────────────────────────────────────────────────────────
+const ENROLLMENT_BASE = `${BASE}/api/enrollment`;
+
+export const bulkEnrollStudent     = (payload)    => post(`${ENROLLMENT_BASE}/bulk`, payload);
+export const getStudentEnrollment  = (studentId)  => get(`${ENROLLMENT_BASE}/student/${studentId}`);
+export const removeEnrolledSubject = (studentId, subjectId) =>
+  del(`${ENROLLMENT_BASE}/student/${studentId}/subject/${subjectId}`);
+
+// export const getStudentEnrollment = (studentId) =>
+//   axios.get(`/api/enrollment/student/${studentId}`).then((res) => res.data);
 
 export const linkSchool = (schoolCode) =>
   put(`${AUTH_BASE}/users/link-school`, { schoolCode });

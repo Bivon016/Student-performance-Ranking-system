@@ -1,62 +1,94 @@
 package com.gradingSystem.GraadingSystem.Service;
 
+import com.gradingSystem.GraadingSystem.Repository.SubjectGroupRepo;
 import com.gradingSystem.GraadingSystem.Repository.SubjectRepo;
-import com.gradingSystem.GraadingSystem.model.Exam;        // ← must be here
-import com.gradingSystem.GraadingSystem.model.School;
-import com.gradingSystem.GraadingSystem.model.Subjects;
-import org.springframework.http.HttpStatus;
+import com.gradingSystem.GraadingSystem.dto.SubjectDTO;
+import com.gradingSystem.GraadingSystem.model.*;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-import com.gradingSystem.GraadingSystem.Repository.TeacherAssignmentRepository;
-
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class SubjectsService {
 
-    private SubjectRepo subjectRepo;
-    private SchoolContextService schoolContextService;
-    private TeacherAssignmentRepository teacherAssignmentRepository;
+    private final SubjectRepo          subjectRepo;
+    private final SchoolContextService schoolContextService;
+    private final SubjectGroupRepo     subjectGroupRepo;  // ← add this
 
-    public SubjectsService(SubjectRepo subjectRepo, SchoolContextService schoolContextService, TeacherAssignmentRepository teacherAssignmentRepository) {
-        this.subjectRepo = subjectRepo;
+    public SubjectsService(SubjectRepo subjectRepo,
+                           SchoolContextService schoolContextService,
+                           SubjectGroupRepo subjectGroupRepo) {  // ← inject
+        this.subjectRepo          = subjectRepo;
         this.schoolContextService = schoolContextService;
-        this.teacherAssignmentRepository = teacherAssignmentRepository;
+        this.subjectGroupRepo     = subjectGroupRepo;
     }
 
-    public Subjects addSubject(Subjects subject) {
+    public SubjectDTO addSubject(Subjects subject) {
         School school = schoolContextService.getCurrentSchool();
         subject.setSchool(school);
-        return subjectRepo.save(subject);
+
+        // Resolve group by name from the nested object the frontend sends
+        if (subject.getSubjectType() == SubjectType.OPTIONAL
+                && subject.getSubjectGroup() != null
+                && subject.getSubjectGroup().getGroupName() != null) {
+
+            String groupName = subject.getSubjectGroup().getGroupName();
+            SubjectGroup group = subjectGroupRepo
+                    .findByGroupNameAndSchool(groupName, school)
+                    .orElseThrow(() -> new RuntimeException("Group not found: " + groupName));
+            subject.setSubjectGroup(group);
+        } else {
+            subject.setSubjectGroup(null);
+        }
+
+        return new SubjectDTO(subjectRepo.save(subject));
     }
 
-    public Subjects viewSubject(Long id) {
+    public SubjectDTO viewSubject(Long id) {
         School school = schoolContextService.getCurrentSchool();
-        return subjectRepo.findBysubjectIdAndSchool(id, school)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subject not found with id " + id));
+        Subjects s = subjectRepo.findBySchoolAndSubjectId(school, id)
+                .orElseThrow(() -> new RuntimeException("Subject not found: " + id));
+        return new SubjectDTO(s);
     }
 
-    public List<Subjects> viewAllSubjects() {
+    public List<SubjectDTO> viewAllSubjects() {
         School school = schoolContextService.getCurrentSchool();
-        return subjectRepo.findBySchool(school);
+        return subjectRepo.findBySchool(school)
+                .stream()
+                .map(SubjectDTO::new)
+                .collect(Collectors.toList());
     }
 
-    public Subjects updateSubject(Long id, Subjects newData) {
-        School school = schoolContextService.getCurrentSchool();
-        Subjects subject = subjectRepo.findBySchoolAndSubjectId(school, id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subject not found with id " + id));
-        subject.setSubjectName(newData.getSubjectName());
-        return subjectRepo.save(subject);
-    }
-    @Transactional
     public void deleteSubject(Long id) {
         School school = schoolContextService.getCurrentSchool();
         Subjects subject = subjectRepo.findBySchoolAndSubjectId(school, id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subject not found with id " + id));
-
-        teacherAssignmentRepository.deleteBySubject_SubjectId(id);
+                .orElseThrow(() -> new RuntimeException("Subject not found: " + id));
         subjectRepo.delete(subject);
+    }
+
+    public SubjectDTO updateSubject(Long id, Subjects updated) {
+        School school = schoolContextService.getCurrentSchool();
+        Subjects existing = subjectRepo.findBySchoolAndSubjectId(school, id)
+                .orElseThrow(() -> new RuntimeException("Subject not found: " + id));
+
+        existing.setSubjectName(updated.getSubjectName());
+        existing.setSubjectType(updated.getSubjectType());
+
+        // Resolve group by name
+        if (updated.getSubjectType() == SubjectType.OPTIONAL
+                && updated.getSubjectGroup() != null
+                && updated.getSubjectGroup().getGroupName() != null) {
+
+            String groupName = updated.getSubjectGroup().getGroupName();
+            SubjectGroup group = subjectGroupRepo
+                    .findByGroupNameAndSchool(groupName, school)
+                    .orElseThrow(() -> new RuntimeException("Group not found: " + groupName));
+            existing.setSubjectGroup(group);
+        } else {
+            existing.setSubjectGroup(null);
+        }
+
+        return new SubjectDTO(subjectRepo.save(existing));
     }
 }

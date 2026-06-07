@@ -1,10 +1,6 @@
 package com.gradingSystem.GraadingSystem.Service;
 
-import com.gradingSystem.GraadingSystem.Repository.ClassRepo;
-import com.gradingSystem.GraadingSystem.Repository.ExamRepo;
-import com.gradingSystem.GraadingSystem.Repository.Marksrepo;
-import com.gradingSystem.GraadingSystem.Repository.StudentRepo;
-import com.gradingSystem.GraadingSystem.Repository.SubjectRepo;
+import com.gradingSystem.GraadingSystem.Repository.*;
 import com.gradingSystem.GraadingSystem.dataStructures.MaxHeap;
 import com.gradingSystem.GraadingSystem.dataStructures.StudentRankNode;
 import com.gradingSystem.GraadingSystem.dto.ResultsResponseDTO;
@@ -19,24 +15,26 @@ import java.util.stream.Collectors;
 
 @Service
 public class RankingService {
+    private final Marksrepo marksrepo;
+    private final StudentRepo studentRepo;
+    private final ClassRepo classRepo;
+    private final ExamRepo examRepo;
+    private final SubjectRepo subjectRepo;
+    private final SchoolContextService schoolContextService;
+    private final StudentSubjectEnrollmentRepo enrollmentRepo;
 
-     private Marksrepo   marksrepo;
-     private StudentRepo studentRepo;
-     private ClassRepo   classRepo;
-     private ExamRepo    examRepo;
-     private SubjectRepo subjectRepo;
 
     public RankingService(Marksrepo marksrepo, StudentRepo studentRepo, ClassRepo classRepo,
-                          ExamRepo examRepo, SubjectRepo subjectRepo, SchoolContextService schoolContextService) {
+                          ExamRepo examRepo, SubjectRepo subjectRepo, SchoolContextService schoolContextService,StudentSubjectEnrollmentRepo enrollmentRepo) {
         this.marksrepo = marksrepo;
         this.studentRepo = studentRepo;
         this.classRepo = classRepo;
         this.examRepo = examRepo;
         this.subjectRepo = subjectRepo;
         this.schoolContextService = schoolContextService;
+        this.enrollmentRepo = enrollmentRepo;
     }
 
-    private SchoolContextService schoolContextService;
 
 
     public List<com.gradingSystem.GraadingSystem.dto.StudentRankingDTO> rankStudentsByForm(int form) {
@@ -74,146 +72,194 @@ public class RankingService {
      * @param classIds  list of classIds to include (e.g. [5] for one stream, [5,6] for all Form 1)
      * @param examType  the exam type to aggregate marks for
      */
-    public ResultsResponseDTO generateResults(List<Long> classIds, ExamType examType) {
+  
+        public ResultsResponseDTO generateResults(List<Long> classIds, ExamType examType) {
 
-        School school = schoolContextService.getCurrentSchool();
+            School school = schoolContextService.getCurrentSchool();
 
-        // 1. Load all classes and validate
-        List<Classes> classes = classRepo.findAllById(classIds);
-        if (classes.isEmpty()) throw new RuntimeException("No classes found for given IDs");
+            // 1. Load all classes and validate
+            List<Classes> classes = classRepo.findAllById(classIds);
+            if (classes.isEmpty()) throw new RuntimeException("No classes found for given IDs");
 
-        // 2. Collect unique formNumbers from selected classes
-        Set<Integer> formNumbers = classes.stream()
-                .map(Classes::getFormNumber)
-                .collect(Collectors.toSet());
+            // 2. Collect unique formNumbers from selected classes
+            Set<Integer> formNumbers = classes.stream()
+                    .map(Classes::getFormNumber)
+                    .collect(Collectors.toSet());
 
-        // 3. Get all students in selected classes
-        List<Students> students =
-                studentRepo.findBySchoolAndClassIdIn(
-                        school,
-                        classIds
-                );
-        if (students.isEmpty()) throw new RuntimeException("No students found in selected classes");
+            // 3. Get all students in selected classes
+            List<Students> students = studentRepo.findBySchoolAndClassIdIn(school, classIds);
+            if (students.isEmpty()) throw new RuntimeException("No students found in selected classes");
 
-        // 4. Build classId → Classes map for display
-        Map<Long, Classes> classMap = classes.stream()
-                .collect(Collectors.toMap(Classes::getClassId, c -> c));
+            // 3b. Build per-student set of enrolled subjects using StudentSubjectEnrollmentRepo
+//     inject enrollmentRepo into RankingService constructor as well
+            List<Long> studentIds = students.stream().map(Students::getId).collect(Collectors.toList());
+            List<StudentSubjectEnrollment> allEnrollments =
+                    enrollmentRepo.findByStudentIdsAndSchool(studentIds, school);
 
-        // 5. Get all subjects (all subjects that have exams for these forms + this examType)
-        List<Exam> relevantExams = examRepo.findByFormInAndExamTypeAndSchool(formNumbers, examType, school);
-        if (relevantExams.isEmpty()) throw new RuntimeException(
-                "No exams of type " + examType + " found for the selected classes");
+// studentId → Set<subjectName>
+            Map<Long, Set<String>> studentEnrolledSubjects = new HashMap<>();
+            for (StudentSubjectEnrollment e : allEnrollments) {
+                studentEnrolledSubjects
+                        .computeIfAbsent(e.getStudent().getId(), k -> new HashSet<>())
+                        .add(e.getSubject().getSubjectName());
+            }
 
-        // 6. Build ordered list of unique subject names
-        List<String> subjectNames = relevantExams.stream()
-                .map(e -> e.getSubject().getSubjectName())
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
+            // 4. Build classId → Classes map for display
+            Map<Long, Classes> classMap = classes.stream()
+                    .collect(Collectors.toMap(Classes::getClassId, c -> c));
 
-        // 7. Build subjectName → list of examIds map
-        Map<String, List<Long>> subjectExamIds = new LinkedHashMap<>();
-        for (Exam exam : relevantExams) {
-            String name = exam.getSubject().getSubjectName();
-            subjectExamIds.computeIfAbsent(name, k -> new ArrayList<>()).add(exam.getExamId());
-        }
+            // 5. Get all relevant exams for this school + forms + examType
+            List<Exam> relevantExams = examRepo.findByFormInAndExamTypeAndSchool(formNumbers, examType, school);
+            if (relevantExams.isEmpty()) throw new RuntimeException(
+                    "No exams of type " + examType + " found for the selected classes");
 
-        // 8. Fetch all marks for relevant exams
-        List<Long> allExamIds = relevantExams.stream()
-                .map(Exam::getExamId).collect(Collectors.toList());
-        List<Marks> allMarks = marksrepo.findByExamIdIn(allExamIds);
+            // 6. Build subjectName → SubjectType map so we know which are compulsory
+            //    Also build the global subject list (compulsory + all optionals that appear)
+            Map<String, SubjectType> subjectTypeMap = new LinkedHashMap<>();
+            for (Exam exam : relevantExams) {
+                String name = exam.getSubject().getSubjectName();
+                SubjectType type = exam.getSubject().getSubjectType() != null
+                        ? exam.getSubject().getSubjectType()
+                        : SubjectType.COMPULSORY; // default to compulsory if not set
+                subjectTypeMap.put(name, type);
+            }
 
-        // 9. Build nested map: studentId → subjectName → list of mark values
-        Map<Long, Map<String, List<Double>>> studentSubjectMarks = new HashMap<>();
-        for (Marks mark : allMarks) {
-            Long   sid         = mark.getStudent().getId();
-            String subjectName = mark.getSubject().getSubjectName();
-            studentSubjectMarks
-                    .computeIfAbsent(sid, k -> new HashMap<>())
-                    .computeIfAbsent(subjectName, k -> new ArrayList<>())
-                    .add((double) mark.getMarksValue());
-        }
+            // Global subject list for column headers — all subjects sorted
+            List<String> allSubjectNames = subjectTypeMap.keySet().stream()
+                    .sorted()
+                    .collect(Collectors.toList());
 
-        // 10. Build StudentResultDTO for each student
-        List<StudentResultDTO> unranked = new ArrayList<>();
-        for (Students student : students) {
-            Map<String, Double> subjectTotals  = new LinkedHashMap<>();
-            List<String>        missingSubjects = new ArrayList<>();
+            // Compulsory subjects only — for missing marks flagging
+            Set<String> compulsorySubjects = subjectTypeMap.entrySet().stream()
+                    .filter(e -> e.getValue() == SubjectType.COMPULSORY)
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toSet());
 
-            Map<String, List<Double>> marksForStudent =
-                    studentSubjectMarks.getOrDefault(student.getId(), Collections.emptyMap());
+            // 7. Build subjectName → list of examIds map
+            Map<String, List<Long>> subjectExamIds = new LinkedHashMap<>();
+            for (Exam exam : relevantExams) {
+                String name = exam.getSubject().getSubjectName();
+                subjectExamIds.computeIfAbsent(name, k -> new ArrayList<>()).add(exam.getExamId());
+            }
 
-            double total = 0.0;
-            for (String subjectName : subjectNames) {
-                List<Double> values = marksForStudent.get(subjectName);
-                if (values == null || values.isEmpty()) {
-                    subjectTotals.put(subjectName, 0.0);   // treat missing as 0
-                    missingSubjects.add(subjectName);       // still flagged as missing
+            // 8. Fetch all marks for relevant exams
+            List<Long> allExamIds = relevantExams.stream()
+                    .map(Exam::getExamId).collect(Collectors.toList());
+            List<Marks> allMarks = marksrepo.findByExamIdIn(allExamIds);
+
+            // 9. Build nested map: studentId → subjectName → list of mark values
+            Map<Long, Map<String, List<Double>>> studentSubjectMarks = new HashMap<>();
+            for (Marks mark : allMarks) {
+                Long   sid         = mark.getStudent().getId();
+                String subjectName = mark.getSubject().getSubjectName();
+                studentSubjectMarks
+                        .computeIfAbsent(sid, k -> new HashMap<>())
+                        .computeIfAbsent(subjectName, k -> new ArrayList<>())
+                        .add((double) mark.getMarksValue());
+            }
+
+            // 10. Build StudentResultDTO for each student
+            // 10. Build StudentResultDTO for each student
+            List<StudentResultDTO> unranked = new ArrayList<>();
+            for (Students student : students) {
+                Map<String, Double> subjectTotals  = new LinkedHashMap<>();
+                List<String>        missingSubjects = new ArrayList<>();
+
+                Map<String, List<Double>> marksForStudent =
+                        studentSubjectMarks.getOrDefault(student.getId(), Collections.emptyMap());
+
+                Set<String> enrolledSubjects =
+                        studentEnrolledSubjects.getOrDefault(student.getId(), Collections.emptySet());
+
+                double total = 0.0;
+
+                for (String subjectName : allSubjectNames) {
+                    boolean isCompulsory = compulsorySubjects.contains(subjectName);
+                    boolean isEnrolled   = isCompulsory || enrolledSubjects.contains(subjectName);
+
+                    if (!isEnrolled) continue;
+
+                    List<Double> values = marksForStudent.get(subjectName);
+
+                    if (values == null || values.isEmpty()) {
+                        if (isCompulsory) {
+                            // Compulsory + no marks → count as 0, still flag as missing
+                            subjectTotals.put(subjectName, 0.0);
+                            missingSubjects.add(subjectName);
+                        } else {
+                            // Optional + enrolled + no marks → exclude from total, flag missing
+                            subjectTotals.put(subjectName, null);
+                            missingSubjects.add(subjectName);
+                        }
+                    } else {
+                        double sum = values.stream().mapToDouble(Double::doubleValue).sum();
+                        subjectTotals.put(subjectName, sum);
+                        total += sum;
+                    }
+                }
+
+                Classes cls = classMap.get(student.getClassId());
+                unranked.add(new StudentResultDTO(
+                        student.getId(),
+                        student.getFirstName() + " " + student.getSecondName(),
+                        student.getClassId(),
+                        cls != null ? cls.getClassName() : "—",
+                        subjectTotals,
+                        missingSubjects,
+                        total,
+                        0
+                ));
+            }
+            // 11. Use MaxHeap to rank students by totalMarks (descending)
+            MaxHeap heap = new MaxHeap(unranked.size());
+            for (StudentResultDTO dto : unranked) {
+                heap.insert(new StudentRankNode(dto));
+            }
+
+            List<StudentResultDTO> ranked = new ArrayList<>();
+            int rank = 1;
+            while (!heap.isEmpty()) {
+                StudentResultDTO dto = heap.extractMax().getResultDTO();
+                dto.setRank(rank++);
+                ranked.add(dto);
+            }
+
+            // 12. Calculate subject averages — only for students who took that subject
+            Map<String, Double> subjectAverages = new LinkedHashMap<>();
+            for (String subjectName : allSubjectNames) {
+                boolean isCompulsory = compulsorySubjects.contains(subjectName);
+
+                if (isCompulsory) {
+                    // Include all enrolled students — missing compulsory marks count as 0
+                    List<Double> vals = ranked.stream()
+                            .filter(s -> s.getSubjectMarks().containsKey(subjectName))
+                            .map(s -> s.getSubjectMarks().getOrDefault(subjectName, 0.0))
+                            .collect(Collectors.toList());
+
+                    double avg = vals.isEmpty() ? 0.0
+                            : vals.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+                    subjectAverages.put(subjectName, Math.round(avg * 100.0) / 100.0);
                 } else {
-                    double sum = values.stream().mapToDouble(Double::doubleValue).sum();
-                    subjectTotals.put(subjectName, sum);
-                    total += sum;
+                    // Optional — only average over students who actually took it and have marks
+                    List<Double> vals = ranked.stream()
+                            .filter(s -> s.getSubjectMarks().containsKey(subjectName))
+                            .map(s -> s.getSubjectMarks().get(subjectName))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+
+                    double avg = vals.isEmpty() ? 0.0
+                            : vals.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+                    subjectAverages.put(subjectName, Math.round(avg * 100.0) / 100.0);
                 }
             }
 
-            Classes cls = classMap.get(student.getClassId());
-            unranked.add(new StudentResultDTO(
-                    student.getId(),
-                    student.getFirstName() + " " + student.getSecondName(),
-                    student.getClassId(),
-                    cls != null ? cls.getClassName() : "—",
-                    subjectTotals,
-                    missingSubjects,
-                    total,
-                    0 // rank assigned after sorting
-            ));
+            // 13. Overall average
+            double overallAverage = subjectAverages.values().stream()
+                    .mapToDouble(Double::doubleValue).average().orElse(0.0);
+            overallAverage = Math.round(overallAverage * 100.0) / 100.0;
+
+            boolean hasIssues = ranked.stream().anyMatch(StudentResultDTO::isHasIssues);
+
+            return new ResultsResponseDTO(ranked, allSubjectNames, subjectAverages, overallAverage, hasIssues);
         }
-
-        // 11. Use MaxHeap to rank students by totalMarks (descending)
-        MaxHeap heap = new MaxHeap(unranked.size());
-        for (StudentResultDTO dto : unranked) {
-            heap.insert(new StudentRankNode(dto));
-        }
-
-        List<StudentResultDTO> ranked = new ArrayList<>();
-        int rank = 1;
-        while (!heap.isEmpty()) {
-            StudentResultDTO dto = heap.extractMax().getResultDTO();
-            dto.setRank(rank++);
-            ranked.add(dto);
-        }
-
-        // 12. Calculate subject averages
-        Map<String, Double> subjectAverages = new LinkedHashMap<>();
-
-        for (String subjectName : subjectNames) {
-
-            List<Double> vals = ranked.stream()
-                    .filter(s -> !s.getMissingSubjects().contains(subjectName))
-                    .map(s -> s.getSubjectMarks().get(subjectName))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-
-            double avg = vals.isEmpty()
-                    ? 0.0
-                    : vals.stream()
-                    .mapToDouble(Double::doubleValue)
-                    .average()
-                    .orElse(0.0);
-
-            subjectAverages.put(
-                    subjectName,
-                    Math.round(avg * 100.0) / 100.0
-            );
-        }
-
-        // 13. Overall average = average of all subject averages
-        double overallAverage = subjectAverages.values().stream()
-                .mapToDouble(Double::doubleValue).average().orElse(0.0);
-        overallAverage = Math.round(overallAverage * 100.0) / 100.0;
-
-        boolean hasIssues = ranked.stream().anyMatch(StudentResultDTO::isHasIssues);
-
-        return new ResultsResponseDTO(ranked, subjectNames, subjectAverages, overallAverage, hasIssues);
     }
-}

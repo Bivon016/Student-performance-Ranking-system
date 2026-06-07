@@ -8,9 +8,10 @@ import {
   getAllClasses,
   getRole,
 } from "../services/api";
+import EnrollmentModal from "../components/EnrollmentModal";
 import {
   Users, Plus, Edit, Trash2, X, Save,
-  Search, CheckCircle, GraduationCap, UserPlus,
+  Search, CheckCircle, GraduationCap, UserPlus,BookOpen,
 } from "lucide-react";
 import BatchAddStudents from "./BatchAddStudents";
 
@@ -52,6 +53,8 @@ const Students = () => {
   const [search,        setSearch]        = useState("");
   const [activeClass,   setActiveClass]   = useState("all"); // drives server fetch
   const [filterGender,  setFilterGender]  = useState("all");
+  const [enrollingStudent, setEnrollingStudent] = useState(null);
+  
 
   // ── Fetch helpers ─────────────────────────────────────────────────────────
 
@@ -514,6 +517,11 @@ const Students = () => {
                               <Trash2 size={13} /><span>Delete</span>
                             </button>
                           )}
+                          <button
+                           onClick={() => setEnrollingStudent(student)}
+                           className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600">
+                           <BookOpen size={13} /> Enroll
+                        </button>
                         </div>
                       </td>
                     )}
@@ -550,10 +558,19 @@ const Students = () => {
             )}
           </div>
         )}
-      </div>
+ </div>
 
-    </div>
+      {enrollingStudent && (
+        <EnrollmentModal
+          student={enrollingStudent}
+          onClose={() => setEnrollingStudent(null)}
+          onSaved={() => setEnrollingStudent(null)}
+        />
+      )}
+
+    </div> 
   );
 };
+
 
 export default Students;
