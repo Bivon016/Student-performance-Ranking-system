@@ -242,4 +242,3 @@ export async function getResults(classIds, examType) {
 }
 export const getStudentsByClass = (classId) => 
   get(`${STUDENTS_BASE}/class/${classId}`);
-
