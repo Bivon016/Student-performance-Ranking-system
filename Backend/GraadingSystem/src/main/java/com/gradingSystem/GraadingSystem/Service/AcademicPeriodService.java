@@ -2,8 +2,10 @@ package com.gradingSystem.GraadingSystem.Service;
 
 import com.gradingSystem.GraadingSystem.Repository.AcademicPeriodRepo;
 import com.gradingSystem.GraadingSystem.model.AcademicPeriod;
+import com.gradingSystem.GraadingSystem.model.PeriodStatus;
 import com.gradingSystem.GraadingSystem.model.School;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 
 @Service
@@ -27,14 +29,15 @@ public class AcademicPeriodService {
         }
 
         if (academicPeriod.isCurrent()) {
-            academicPeriodRepo.findByIsCurrentTrueAndSchool(school)
-                    .ifPresent(existing -> {
-                        existing.setCurrent(false);
-                        academicPeriodRepo.save(existing);
-                    });
+            closeCurrentPeriod(school);
         }
 
-        academicPeriod.setSchool(school); // ✅ link to school
+        academicPeriod.setSchool(school);
+        if (academicPeriod.isCurrent()) {
+            academicPeriod.setStatus(PeriodStatus.ACTIVE);
+        } else if (academicPeriod.getStatus() == null) {
+            academicPeriod.setStatus(PeriodStatus.ACTIVE);
+        }
         return academicPeriodRepo.save(academicPeriod);
     }
 
@@ -44,23 +47,59 @@ public class AcademicPeriodService {
                 .orElseThrow(() -> new RuntimeException("No active academic period"));
     }
 
+    public AcademicPeriod getPeriodById(Long periodId) {
+        School school = schoolContextService.getCurrentSchool();
+        AcademicPeriod period = academicPeriodRepo.findById(periodId)
+                .orElseThrow(() -> new RuntimeException("Period not found"));
+        if (!period.getSchool().getSchoolId().equals(school.getSchoolId())) {
+            throw new RuntimeException("Period does not belong to this school");
+        }
+        return period;
+    }
+
+    public AcademicPeriod resolvePeriod(Long periodId) {
+        return periodId != null ? getPeriodById(periodId) : getCurrentPeriod();
+    }
+
+    public void assertPeriodIsWritable(AcademicPeriod period) {
+        if (period.getStatus() == PeriodStatus.CLOSED) {
+            throw new RuntimeException(
+                    "Cannot modify data for closed academic period (Term "
+                            + period.getTerm() + ", " + period.getYear() + ")");
+        }
+    }
+
     public AcademicPeriod setCurrentPeriod(Long id) {
         School school = schoolContextService.getCurrentSchool();
 
-        academicPeriodRepo.findByIsCurrentTrueAndSchool(school)
-                .ifPresent(existing -> {
-                    existing.setCurrent(false);
-                    academicPeriodRepo.save(existing);
-                });
-
         AcademicPeriod period = academicPeriodRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Period not found"));
+
+        if (!period.getSchool().getSchoolId().equals(school.getSchoolId())) {
+            throw new RuntimeException("Period does not belong to this school");
+        }
+        if (period.getStatus() == PeriodStatus.CLOSED) {
+            throw new RuntimeException("Cannot reactivate a closed academic period");
+        }
+
+        closeCurrentPeriod(school);
+
         period.setCurrent(true);
+        period.setStatus(PeriodStatus.ACTIVE);
         return academicPeriodRepo.save(period);
     }
 
     public List<AcademicPeriod> getAllPeriods() {
         School school = schoolContextService.getCurrentSchool();
-        return academicPeriodRepo.findBySchool(school); // ✅ scoped to school
+        return academicPeriodRepo.findBySchool(school);
+    }
+
+    private void closeCurrentPeriod(School school) {
+        academicPeriodRepo.findByIsCurrentTrueAndSchool(school)
+                .ifPresent(existing -> {
+                    existing.setCurrent(false);
+                    existing.setStatus(PeriodStatus.CLOSED);
+                    academicPeriodRepo.save(existing);
+                });
     }
 }

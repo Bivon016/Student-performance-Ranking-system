@@ -100,7 +100,7 @@ export const EXAM_LABEL_MAP = {
  *
  * Every field referenced in ReportCard.jsx is guaranteed to be present.
  */
-export function useReportCard(studentId, classIds = [], examType = "FINAL_EXAM") {
+export function useReportCard(studentId, classIds = [], examType = "FINAL_EXAM", periodId = null) {
   const [report,  setReport]  = useState(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
@@ -112,7 +112,7 @@ export function useReportCard(studentId, classIds = [], examType = "FINAL_EXAM")
     setReport(null);
 
     try {
-      const data = await getResults(classIds, examType);
+      const data = await getResults(classIds, examType, periodId || null);
 
       const subjectNames  = data.subjectNames ?? data.subjects ?? [];
       const studentList   = data.students ?? [];
@@ -174,8 +174,9 @@ export function useReportCard(studentId, classIds = [], examType = "FINAL_EXAM")
         form:            entry.className   ?? "—",   // alias
         profileInitials: initials,
         admissionNo:     `ID #${entry.studentId}`,   // API doesn't return adm. no.
-        academicYear:
-          new Date().getFullYear() + " / " + (new Date().getFullYear() + 1),
+        academicYear: data.periodYear
+          ? `${data.periodYear} · Term ${data.periodTerm}`
+          : new Date().getFullYear() + " / " + (new Date().getFullYear() + 1),
 
         // ── Grades ────────────────────────────────────────────────────────
         meanGrade,
@@ -224,7 +225,7 @@ export function useReportCard(studentId, classIds = [], examType = "FINAL_EXAM")
     } finally {
       setLoading(false);
     }
-  }, [studentId, classIds.join(","), examType]);
+  }, [studentId, classIds.join(","), examType, periodId]);
 
   useEffect(() => { doFetch(); }, [doFetch]);
 

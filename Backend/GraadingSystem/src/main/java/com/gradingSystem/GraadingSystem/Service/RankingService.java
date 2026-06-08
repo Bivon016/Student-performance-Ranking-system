@@ -22,10 +22,12 @@ public class RankingService {
     private final SubjectRepo subjectRepo;
     private final SchoolContextService schoolContextService;
     private final StudentSubjectEnrollmentRepo enrollmentRepo;
+    private final AcademicPeriodService academicPeriodService;
 
 
     public RankingService(Marksrepo marksrepo, StudentRepo studentRepo, ClassRepo classRepo,
-                          ExamRepo examRepo, SubjectRepo subjectRepo, SchoolContextService schoolContextService,StudentSubjectEnrollmentRepo enrollmentRepo) {
+                          ExamRepo examRepo, SubjectRepo subjectRepo, SchoolContextService schoolContextService,
+                          StudentSubjectEnrollmentRepo enrollmentRepo, AcademicPeriodService academicPeriodService) {
         this.marksrepo = marksrepo;
         this.studentRepo = studentRepo;
         this.classRepo = classRepo;
@@ -33,6 +35,7 @@ public class RankingService {
         this.subjectRepo = subjectRepo;
         this.schoolContextService = schoolContextService;
         this.enrollmentRepo = enrollmentRepo;
+        this.academicPeriodService = academicPeriodService;
     }
 
 
@@ -73,9 +76,10 @@ public class RankingService {
      * @param examType  the exam type to aggregate marks for
      */
   
-        public ResultsResponseDTO generateResults(List<Long> classIds, ExamType examType) {
+        public ResultsResponseDTO generateResults(List<Long> classIds, ExamType examType, Long periodId) {
 
             School school = schoolContextService.getCurrentSchool();
+            AcademicPeriod period = academicPeriodService.resolvePeriod(periodId);
 
             // 1. Load all classes and validate
             List<Classes> classes = classRepo.findAllById(classIds);
@@ -109,9 +113,11 @@ public class RankingService {
                     .collect(Collectors.toMap(Classes::getClassId, c -> c));
 
             // 5. Get all relevant exams for this school + forms + examType
-            List<Exam> relevantExams = examRepo.findByFormInAndExamTypeAndSchool(formNumbers, examType, school);
+            List<Exam> relevantExams = examRepo.findByFormInAndExamTypeAndSchoolAndPeriod(
+                    formNumbers, examType, school, period);
             if (relevantExams.isEmpty()) throw new RuntimeException(
-                    "No exams of type " + examType + " found for the selected classes");
+                    "No exams of type " + examType + " found for Term "
+                            + period.getTerm() + " " + period.getYear());
 
             // 6. Build subjectName → SubjectType map so we know which are compulsory
             //    Also build the global subject list (compulsory + all optionals that appear)
@@ -260,6 +266,8 @@ public class RankingService {
 
             boolean hasIssues = ranked.stream().anyMatch(StudentResultDTO::isHasIssues);
 
-            return new ResultsResponseDTO(ranked, allSubjectNames, subjectAverages, overallAverage, hasIssues);
+            return new ResultsResponseDTO(
+                    ranked, allSubjectNames, subjectAverages, overallAverage, hasIssues,
+                    period.getId(), period.getYear(), period.getTerm());
         }
     }

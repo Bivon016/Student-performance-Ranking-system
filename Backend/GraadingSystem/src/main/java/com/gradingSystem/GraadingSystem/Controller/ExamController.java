@@ -18,7 +18,6 @@ public class ExamController {
     @Autowired
     private ExamService examService;
 
-    // 🔒 Only the assigned teacher for this subject+class, or ADMIN
     @PostMapping("/create")
     @PreAuthorize("hasRole('PRINCIPAL') or " +
             "@teacherAuthService.isAssignedTo(#dto.subjectId, #dto.classId)")
@@ -26,36 +25,39 @@ public class ExamController {
         return ResponseEntity.ok(examService.createExam(dto));
     }
 
-    // ✅ Any authenticated user can read
     @GetMapping("/all")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<ExamResponseDTO>> getAllExams() {
-        return ResponseEntity.ok(examService.getAllExams());
+    public ResponseEntity<List<ExamResponseDTO>> getAllExams(
+            @RequestParam(required = false) Long periodId) {
+        return ResponseEntity.ok(examService.getAllExams(periodId));
     }
 
     @GetMapping("/filter")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ExamResponseDTO>> getBySubjectAndForm(
             @RequestParam Long subjectId,
-            @RequestParam int form) {
-        return ResponseEntity.ok(examService.getExamsBySubjectAndForm(subjectId, form));
+            @RequestParam int form,
+            @RequestParam(required = false) Long periodId) {
+        return ResponseEntity.ok(examService.getExamsBySubjectAndForm(subjectId, form, periodId));
     }
 
     @GetMapping("/filterByClass")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ExamResponseDTO>> getBySubjectAndClass(
             @RequestParam Long subjectId,
-            @RequestParam Long classId) {
-        return ResponseEntity.ok(examService.getExamsBySubjectAndClass(subjectId, classId));
+            @RequestParam Long classId,
+            @RequestParam(required = false) Long periodId) {
+        return ResponseEntity.ok(examService.getExamsBySubjectAndClass(subjectId, classId, periodId));
     }
 
     @GetMapping("/form/{form}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<ExamResponseDTO>> getByForm(@PathVariable int form) {
-        return ResponseEntity.ok(examService.getExamsByForm(form));
+    public ResponseEntity<List<ExamResponseDTO>> getByForm(
+            @PathVariable int form,
+            @RequestParam(required = false) Long periodId) {
+        return ResponseEntity.ok(examService.getExamsByForm(form, periodId));
     }
 
-    // 🔒 Only ADMIN can delete exams
     @DeleteMapping("/delete/{examId}")
     @PreAuthorize("hasRole('PRINCIPAL')")
     public ResponseEntity<String> deleteExam(@PathVariable Long examId) {

@@ -1,5 +1,6 @@
 package com.gradingSystem.GraadingSystem.Repository;
 
+import com.gradingSystem.GraadingSystem.model.AcademicPeriod;
 import com.gradingSystem.GraadingSystem.model.Exam;
 import com.gradingSystem.GraadingSystem.model.ExamType;
 import com.gradingSystem.GraadingSystem.model.School;
@@ -33,4 +34,23 @@ public interface ExamRepo extends JpaRepository<Exam, Long> {
     List<Exam> findByFormInAndExamTypeAndSchool(@Param("forms") Set<Integer> forms,
                                                 @Param("examType") ExamType examType,
                                                 @Param("school") School school);
+
+    List<Exam> findBySchoolAndAcademicPeriod(School school, AcademicPeriod period);
+
+    List<Exam> findBySchoolAndSubjectAndFormAndAcademicPeriod(
+            School school, Subjects subject, int form, AcademicPeriod period);
+
+    List<Exam> findBySchoolAndFormAndAcademicPeriod(School school, int form, AcademicPeriod period);
+
+    List<Exam> findBySchoolAndSubjectAndClassIdAndAcademicPeriod(
+            School school, Subjects subject, Long classId, AcademicPeriod period);
+
+    @Query("SELECT e FROM Exam e JOIN FETCH e.subject " +
+            "WHERE e.form IN :forms AND e.examType = :examType " +
+            "AND e.school = :school AND e.academicPeriod = :period")
+    List<Exam> findByFormInAndExamTypeAndSchoolAndPeriod(
+            @Param("forms") Set<Integer> forms,
+            @Param("examType") ExamType examType,
+            @Param("school") School school,
+            @Param("period") AcademicPeriod period);
 }

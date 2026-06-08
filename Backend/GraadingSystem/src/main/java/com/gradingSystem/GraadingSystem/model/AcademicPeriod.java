@@ -71,8 +71,21 @@ public class AcademicPeriod {
     private LocalDate startDate;
     private LocalDate endDate;
     private boolean isCurrent;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PeriodStatus status = PeriodStatus.ACTIVE;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id")
     private School school;
+
+    public PeriodStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PeriodStatus status) {
+        this.status = status;
+    }
 
 }

@@ -121,8 +121,9 @@ export default function ReportCard() {
   const studentId = searchParams.get("studentId");
   const classIds  = (searchParams.get("classIds") ?? "").split(",").filter(Boolean);
   const examType  = searchParams.get("examType") ?? "FINAL_EXAM";
+  const periodId  = searchParams.get("periodId");
 
-  const { report, loading: rLoad, error: rErr } = useReportCard(studentId, classIds, examType);
+  const { report, loading: rLoad, error: rErr } = useReportCard(studentId, classIds, examType, periodId);
   const { school, loading: sLoad } = useSchool();
 
   if (rLoad || sLoad) return <LoadingScreen />;
@@ -146,14 +147,33 @@ export default function ReportCard() {
   const totalGP = subjects.reduce((s, x) => s + (x.gp ?? 0), 0);
   const meanGP  = subjects.length ? (totalGP / subjects.length).toFixed(2) : "—";
 
-const handlePrint = () => {
-  const t = document.title;
-  const cleanName = name?.replace(/\s+/g, "_") ?? "Student";
-  const cleanExam = examLabel?.replace(/\s+/g, "_") ?? "Report";
-  document.title = `${cleanName}_ID${studentId}_${cleanExam}`;
-  window.print();
-  document.title = t;
-};
+  const handlePrint = () => {
+    const t = document.title;
+    const cleanName = name?.replace(/\s+/g, "_") ?? "Student";
+    const cleanExam = examLabel?.replace(/\s+/g, "_") ?? "Report";
+    document.title = `${cleanName}_ID${studentId}_${cleanExam}`;
+    window.print();
+    document.title = t;
+  };
+
+  const RemarksBlock = ({ label, remark, signerName }) => (
+    <div style={{ flexShrink: 0 }}>
+      <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: GOLD, marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ border: `1px solid ${RULE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: 3, padding: "6px 12px", background: "#fff", minHeight: 52 }}>
+        {remark
+          ? <p style={{ margin: 0, fontSize: 11, lineHeight: 1.6, color: INK, fontStyle: "italic" }}>{remark}</p>
+          : <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: 40 }}>{[1,2,3].map(i => <div key={i} style={{ borderBottom: `1px dashed ${RULE}`, height: 1 }} />)}</div>
+        }
+      </div>
+      {signerName && (
+        <div style={{ marginTop: 3, fontSize: 8.5, color: MUTED, textAlign: "right", fontStyle: "italic" }}>
+          — {signerName}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -177,8 +197,17 @@ const handlePrint = () => {
           </div>
         </div>
 
-        {/* A4 Card */}
-        <div id="rc-root" style={{ width: 794, height: 1123, background: CREAM, boxShadow: "0 8px 40px rgba(0,0,0,0.25)", borderRadius: 4, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+        {/* A4 Card — width fixed at 794px, height grows with content on screen, locked to A4 on print */}
+        <div id="rc-root" style={{
+          width: 794,
+          background: CREAM,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
+          borderRadius: 4,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          position: "relative",
+        }}>
 
           {/* Gold top stripe */}
           <div style={{ height: 6, background: `linear-gradient(90deg,${GOLD},${GOLD2},${GOLD})`, flexShrink: 0 }} />
@@ -196,12 +225,19 @@ const handlePrint = () => {
             </div>
           </div>
 
-          {/* BODY */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "12px 22px", gap: 7, overflow: "hidden" }}>
+          {/* BODY — no fixed height, no overflow hidden, no spacer; content determines height */}
+          <div style={{ display: "flex", flexDirection: "column", padding: "12px 22px", gap: 7 }}>
 
             {/* Student details */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, border: `1px solid ${RULE}`, borderRadius: 3, overflow: "hidden", flexShrink: 0 }}>
-              {[["Student Name",name],["Admission No.",admissionNo],["Class / Form",form],["Academic Year",academicYear],["Exam / Term",examLabel],["Date Issued",dateIssued]].map(([label,value],i) => (
+              {[
+                ["Student Name", name],
+                ["Admission No.", admissionNo],
+                ["Class / Grade", form],
+                ["Academic Year", academicYear],
+                ["Exam / Term", examLabel],
+                ["Date Issued", dateIssued],
+              ].map(([label, value], i) => (
                 <div key={label} style={{ display: "flex", borderBottom: i < 4 ? `1px solid ${RULE}` : "none", borderRight: i % 2 === 0 ? `1px solid ${RULE}` : "none" }}>
                   <div style={{ width: 105, background: "#f5f0e8", padding: "5px 8px", fontSize: 8, fontWeight: 700, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", borderRight: `1px solid ${RULE}`, flexShrink: 0 }}>{label}</div>
                   <div style={{ padding: "5px 10px", fontSize: 11, fontWeight: 600, color: INK, display: "flex", alignItems: "center" }}>{value ?? "—"}</div>
@@ -280,19 +316,24 @@ const handlePrint = () => {
             </div>
 
             {/* Remarks */}
-            <div style={{ flexShrink: 0 }}>
-              <div style={{ fontSize:8.5, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:GOLD, marginBottom:4 }}>Class Teacher's Remarks</div>
-              <div style={{ border:`1px solid ${RULE}`, borderLeft:`3px solid ${GOLD}`, borderRadius:3, padding:"6px 12px", background:"#fff", minHeight:32 }}>
-                {teacherRemark
-                  ? <p style={{ margin:0, fontSize:11, lineHeight:1.6, color:INK, fontStyle:"italic" }}>{teacherRemark}</p>
-                  : <div style={{ display:"flex", flexDirection:"column", gap:10, padding:"4px 0" }}>{[1,2].map(i=><div key={i} style={{ borderBottom:`1px dashed ${RULE}`, height:1 }} />)}</div>
-                }
-              </div>
-            </div>
+            <RemarksBlock
+              label="Class Teacher's Remarks"
+              remark={teacherRemark}
+              signerName={teacherName}
+            />
+            <RemarksBlock
+              label="Principal's Remarks"
+              remark={null}
+              signerName={null}
+            />
 
-            {/* Signatures */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:20, flexShrink:0 }}>
-              {[["Class Teacher",teacherName??""],[" Head of Department",""],[" Principal",""]].map(([role,sub])=>(
+            {/* Signatures — directly after remarks, no spacer */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:20, flexShrink:0, marginTop: 4, marginBottom: 6 }}>
+              {[
+                ["Class Teacher", teacherName ?? ""],
+                ["Head of Department", ""],
+                ["Principal", ""],
+              ].map(([role, sub]) => (
                 <div key={role} style={{ textAlign:"center" }}>
                   <div style={{ height:28, borderBottom:`1px solid ${INK}`, marginBottom:4 }} />
                   <div style={{ fontSize:8.5, fontWeight:700, color:INK, textTransform:"uppercase", letterSpacing:"0.06em" }}>{role}</div>

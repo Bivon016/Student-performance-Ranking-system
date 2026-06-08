@@ -14,21 +14,27 @@ public class ExamResponseDTO {
     private Long   periodId;
     private int    periodYear;
     private int    periodTerm;
+    private String periodStatus;
+    private boolean readOnly;
     private Long classId;
     public ExamResponseDTO() {}
 
     public ExamResponseDTO(Long examId, ExamType examType, LocalDate examDate,
-                           int form, Long subjectId, String subjectName,Long periodId,int periodYear,int periodTerm,Long classId) {
-        this.examId      = examId;
-        this.examType    = examType;
-        this.examDate    = examDate;
-        this.form        = form;
-        this.subjectId   = subjectId;
-        this.subjectName = subjectName;
-        this.periodId   = periodId;
-        this.periodYear = periodYear;
-        this.periodTerm = periodTerm;
-        this.classId      = classId;
+                           int form, Long subjectId, String subjectName,
+                           Long periodId, int periodYear, int periodTerm,
+                           String periodStatus, boolean readOnly, Long classId) {
+        this.examId        = examId;
+        this.examType      = examType;
+        this.examDate      = examDate;
+        this.form          = form;
+        this.subjectId     = subjectId;
+        this.subjectName   = subjectName;
+        this.periodId      = periodId;
+        this.periodYear    = periodYear;
+        this.periodTerm    = periodTerm;
+        this.periodStatus  = periodStatus;
+        this.readOnly      = readOnly;
+        this.classId       = classId;
     }
 
     public Long getClassId() {
@@ -67,6 +73,22 @@ public class ExamResponseDTO {
 
     public void setPeriodTerm(int periodTerm) {
         this.periodTerm = periodTerm;
+    }
+
+    public String getPeriodStatus() {
+        return periodStatus;
+    }
+
+    public void setPeriodStatus(String periodStatus) {
+        this.periodStatus = periodStatus;
+    }
+
+    public boolean isReadOnly() {
+        return readOnly;
+    }
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
     }
 
     public String    getSubjectName() { return subjectName; }

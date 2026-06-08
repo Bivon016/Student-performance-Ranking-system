@@ -155,8 +155,9 @@ export default function AdminPanel() {
             setError('Please fill all period fields'); return
         }
         try {
-            const created = await createPeriod(newPeriod)
-            setPeriods(prev => [...prev, created])
+            await createPeriod(newPeriod)
+            const updated = await getAllPeriods()
+            setPeriods(updated)
             setNewPeriod({ year: new Date().getFullYear(), term: 1, startDate: '', endDate: '', current: false })
             flash('Period created')
         } catch (e) { setError(e.message) }
@@ -165,7 +166,8 @@ export default function AdminPanel() {
     const handleSetCurrent = async (id) => {
         try {
             await setCurrentPeriod(id)
-            setPeriods(prev => prev.map(p => ({ ...p, current: p.id === id })))
+            const updated = await getAllPeriods()
+            setPeriods(updated)
             flash('Active period updated')
         } catch (e) { setError(e.message) }
     }
@@ -553,13 +555,15 @@ export default function AdminPanel() {
                                             {p.startDate} → {p.endDate}
                                         </td>
                                         <td className="px-5 py-3">
-                                            {p.current
-                                                ? <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">Active</span>
-                                                : <span className="text-xs text-gray-400">Inactive</span>
+                                            {p.status === 'CLOSED'
+                                                ? <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">Closed</span>
+                                                : p.current
+                                                    ? <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">Active (current)</span>
+                                                    : <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium">Active</span>
                                             }
                                         </td>
                                         <td className="px-5 py-3">
-                                            {!p.current && (
+                                            {!p.current && p.status !== 'CLOSED' && (
                                                 <button
                                                     onClick={() => handleSetCurrent(p.id)}
                                                     className="px-3 py-1.5 text-xs border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50"

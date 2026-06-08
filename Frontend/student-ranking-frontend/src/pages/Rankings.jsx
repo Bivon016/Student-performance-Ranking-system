@@ -1,28 +1,38 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllClasses, getResults } from "../services/api";
+import { getAllClasses, getResults, getAllPeriods, getCurrentPeriod } from "../services/api";
 import * as XLSX from "xlsx";
 import {
   Trophy, AlertTriangle, CheckCircle, ChevronDown,
   ChevronUp, Search, BarChart, Users, BookOpen,
-  Zap, RefreshCw, Download, FileText, Package,
+  Zap, RefreshCw, Download, FileText, Package, Filter,
 } from "lucide-react";
 
 const EXAM_TYPES = [
-  { value: "FINAL_EXAM",  label: "Final Exam"  },
-  { value: "MIDTERM",     label: "Midterm"     },
-  { value: "QUIZ",        label: "Quiz"        },
-  { value: "ASSIGNMENT",  label: "Assignment"  },
-  { value: "LAB_WORK",    label: "Lab Work"    },
-  { value: "PROJECT",     label: "Project"     },
+  { value: "FINAL_EXAM", label: "Final Exam",  gradient: "from-blue-500 to-blue-700" },
+  { value: "MIDTERM",    label: "Midterm",     gradient: "from-violet-500 to-purple-700" },
+  { value: "QUIZ",       label: "Quiz",        gradient: "from-emerald-500 to-teal-600" },
+  { value: "ASSIGNMENT", label: "Assignment",  gradient: "from-orange-400 to-rose-500" },
+  { value: "LAB_WORK",   label: "Lab Work",    gradient: "from-pink-500 to-fuchsia-600" },
+  { value: "PROJECT",    label: "Project",     gradient: "from-cyan-500 to-sky-600" },
 ];
 
-const RANK_COLORS = [
+const FORM_GRADIENTS = [
+  "from-blue-500 to-blue-700",
+  "from-violet-500 to-purple-700",
+  "from-emerald-500 to-teal-600",
+  "from-orange-400 to-rose-500",
+  "from-pink-500 to-fuchsia-600",
+  "from-cyan-500 to-sky-600",
+];
+const getFormGradient = (f) => FORM_GRADIENTS[(f - 1) % FORM_GRADIENTS.length];
+
+const RANK_STYLES = [
   "bg-yellow-100 text-yellow-800 border-yellow-300",
   "bg-gray-100   text-gray-700   border-gray-300",
   "bg-orange-100 text-orange-700 border-orange-300",
 ];
-const getRankColor = (rank) => RANK_COLORS[rank - 1] ?? "bg-white text-gray-700 border-gray-200";
+const getRankColor = (rank) => RANK_STYLES[rank - 1] ?? "bg-white text-gray-700 border-gray-200";
 const getRankIcon  = (rank) => rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
 
 const getGradeColor = (val) => {
@@ -52,41 +62,52 @@ const getGradePointColor = (pt) => {
   return "bg-gray-100 text-gray-400";
 };
 
-// Only sum subjects the student is actually enrolled in (key exists in subjectMarks)
 const calcTotalPoints = (student) =>
   Object.values(student.subjectMarks ?? {})
     .reduce((sum, val) => sum + (calcGradePoint(val) ?? 0), 0);
 
-// ─── Bulk download progress modal ─────────────────────────────────────────────
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+const Sk = ({ className }) => (
+  <div className={`bg-gray-100 rounded-2xl animate-pulse ${className}`} />
+);
+
+// ─── Bulk progress modal ───────────────────────────────────────────────────────
 function BulkProgressModal({ total, current, currentName, done, onClose }) {
   const pct = total > 0 ? Math.round((current / total) * 100) : 0;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: "32px 40px", width: 420, boxShadow: "0 24px 60px rgba(0,0,0,0.3)", textAlign: "center" }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.55)" }}>
+      <div className="bg-white rounded-2xl p-8 w-[420px] shadow-2xl text-center">
         {!done ? (
           <>
-            <Package size={36} style={{ color: "#2563eb", margin: "0 auto 16px" }} />
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>Generating Report Cards</h2>
-            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
-              {current} of {total} — <strong>{currentName}</strong>
-            </p>
-            <div style={{ background: "#e2e8f0", borderRadius: 99, height: 10, overflow: "hidden", marginBottom: 12 }}>
-              <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#2563eb,#7c3aed)", borderRadius: 99, transition: "width 0.3s ease" }} />
+            <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Package size={28} className="text-blue-600" />
             </div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#2563eb" }}>{pct}%</p>
-            <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>Please keep this window open…</p>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Generating Report Cards</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              {current} of {total} — <strong className="text-gray-700">{currentName}</strong>
+            </p>
+            <div className="bg-gray-100 rounded-full h-2.5 overflow-hidden mb-2">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-600 transition-all duration-300"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="text-sm font-bold text-blue-600">{pct}%</p>
+            <p className="text-xs text-gray-400 mt-2">Please keep this window open…</p>
           </>
         ) : (
           <>
-            <CheckCircle size={36} style={{ color: "#16a34a", margin: "0 auto 16px" }} />
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>All Done!</h2>
-            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24 }}>
+            <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <CheckCircle size={28} className="text-emerald-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">All Done!</h2>
+            <p className="text-sm text-gray-500 mb-6">
               {total} report card{total !== 1 ? "s" : ""} downloaded as a ZIP file.
             </p>
             <button
               onClick={onClose}
-              style={{ background: "#0f172a", color: "#fff", border: "none", borderRadius: 8, padding: "10px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-            >
+              className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold hover:bg-gray-700 transition-colors">
               Close
             </button>
           </>
@@ -104,37 +125,36 @@ const Results = () => {
   const [error,            setError]            = useState(null);
   const [selectedClassIds, setSelectedClassIds] = useState([]);
   const [examType,         setExamType]         = useState("");
+  const [periodId,         setPeriodId]         = useState("");
+  const [allPeriods,       setAllPeriods]       = useState([]);
+  const [currentPeriod,    setCurrentPeriod]    = useState(null);
   const [results,          setResults]          = useState(null);
   const [generating,       setGenerating]       = useState(false);
   const [genError,         setGenError]         = useState(null);
   const [search,           setSearch]           = useState("");
   const [showIssues,       setShowIssues]       = useState(false);
-
-  // Bulk download state
-  const [bulkProgress, setBulkProgress] = useState(null);
+  const [bulkProgress,     setBulkProgress]     = useState(null);
   const abortRef = useRef(false);
 
   useEffect(() => {
-    getAllClasses()
-      .then(setClasses)
+    Promise.all([getAllClasses(), getAllPeriods(), getCurrentPeriod()])
+      .then(([cls, periods, period]) => {
+        setClasses(cls);
+        setAllPeriods(periods);
+        setCurrentPeriod(period);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
   const formGroups  = classes.reduce((acc, c) => { const f = c.formNumber; if (!acc[f]) acc[f] = []; acc[f].push(c); return acc; }, {});
   const sortedForms = Object.keys(formGroups).map(Number).sort((a, b) => a - b);
-
   const studentList = results?.students ?? [];
 
-  // ── Build the union of all subjects any enrolled student has, sorted ──────
-  // A subject appears in a student's subjectMarks map ONLY if they are enrolled.
-  // null value = enrolled but mark missing. absent key = not enrolled (skip).
   const subjectNames = useMemo(() => {
     if (!results) return [];
     const allKeys = new Set();
-    studentList.forEach((s) => {
-      Object.keys(s.subjectMarks ?? {}).forEach((k) => allKeys.add(k));
-    });
+    studentList.forEach((s) => Object.keys(s.subjectMarks ?? {}).forEach((k) => allKeys.add(k)));
     return [...allKeys].sort();
   }, [results, studentList]);
 
@@ -163,16 +183,16 @@ const Results = () => {
     setResults(null);
   };
 
-  const allStreamsSelected = (formNumber) =>
-    formGroups[formNumber].map((c) => c.classId).every((id) => selectedClassIds.includes(id));
+  const allStreamsSelected = (fn) =>
+    formGroups[fn].map((c) => c.classId).every((id) => selectedClassIds.includes(id));
 
-  const canGenerate = selectedClassIds.length > 0 && examType;
+  const canGenerate = selectedClassIds.length > 0 && examType && (periodId || currentPeriod);
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
     setGenerating(true); setGenError(null); setResults(null);
     try {
-      const data = await getResults(selectedClassIds, examType);
+      const data = await getResults(selectedClassIds, examType, periodId || null);
       setResults(data);
       if (data.hasIssues) setShowIssues(true);
     } catch (err) {
@@ -183,7 +203,7 @@ const Results = () => {
   };
 
   const handleReset = () => {
-    setResults(null); setSelectedClassIds([]); setExamType("");
+    setResults(null); setSelectedClassIds([]); setExamType(""); setPeriodId("");
     setGenError(null); setSearch(""); setShowIssues(false);
   };
 
@@ -193,44 +213,37 @@ const Results = () => {
       classIds:  selectedClassIds.join(","),
       examType,
     });
+    const resolvedPeriodId = periodId || results?.periodId;
+    if (resolvedPeriodId) params.append("periodId", resolvedPeriodId);
     navigate(`/report-card?${params.toString()}`);
   };
 
-  // ── Excel export — enrollment-aware ────────────────────────────────────────
   const handleExportExcel = () => {
     if (!results) return;
     const examLabel = EXAM_TYPES.find((e) => e.value === examType)?.label ?? examType;
-
     const rows = filteredStudents.map((student) => {
       const row = { Rank: student.rank, Student: student.studentName, Class: student.className };
       let totalPoints = 0;
-
       subjectNames.forEach((subj) => {
         const isEnrolled = subj in (student.subjectMarks ?? {});
-        const val        = isEnrolled ? student.subjectMarks[subj] : undefined;
-        const gp         = isEnrolled ? calcGradePoint(val) : undefined;
-
-        row[subj]            = !isEnrolled ? "N/A" : val ?? "Missing";
-        row[`${subj} (GP)`]  = !isEnrolled ? "N/A" : gp ?? "—";
-
+        const val = isEnrolled ? student.subjectMarks[subj] : undefined;
+        const gp  = isEnrolled ? calcGradePoint(val) : undefined;
+        row[subj]           = !isEnrolled ? "N/A" : val ?? "Missing";
+        row[`${subj} (GP)`] = !isEnrolled ? "N/A" : gp ?? "—";
         if (isEnrolled) totalPoints += gp ?? 0;
       });
-
       row["Total Marks"]  = student.totalMarks;
       row["Total Points"] = totalPoints;
       return row;
     });
-
-    // Averages footer row
     const avgRow = { Rank: "", Student: "Class Average", Class: "" };
     subjectNames.forEach((subj) => {
       avgRow[subj]            = subjectAvgs[subj] ?? "—";
       avgRow[`${subj} (GP)`] = calcGradePoint(subjectAvgs[subj]) ?? "—";
     });
-    avgRow["Total Marks"]  = results.overallAverage;
+    avgRow["Total Marks"] = results.overallAverage;
     avgRow["Total Points"] = "";
     rows.push(avgRow);
-
     const ws = XLSX.utils.json_to_sheet(rows);
     ws["!cols"] = Object.keys(rows[0] ?? {}).map((k) => ({ wch: Math.max(k.length, 12) }));
     const wb = XLSX.utils.book_new();
@@ -238,10 +251,8 @@ const Results = () => {
     XLSX.writeFile(wb, `Results_${examLabel.replace(/\s+/g, "_")}.xlsx`);
   };
 
-  // ── Bulk PDF download ──────────────────────────────────────────────────────
   const handleBulkDownload = async () => {
     if (!results || studentList.length === 0) return;
-
     const [html2pdfMod, JSZipMod, { saveAs }] = await Promise.all([
       import("html2pdf.js"),
       import("jszip"),
@@ -249,162 +260,140 @@ const Results = () => {
     ]);
     const html2pdf = html2pdfMod.default;
     const JSZip    = JSZipMod.default;
-
-    const zip         = new JSZip();
+    const zip      = new JSZip();
     const examLabel   = EXAM_TYPES.find((e) => e.value === examType)?.label ?? examType;
     const classIdsStr = selectedClassIds.join(",");
-
     abortRef.current = false;
     setBulkProgress({ total: studentList.length, current: 0, currentName: "", done: false });
-
     const iframe = document.createElement("iframe");
     iframe.style.cssText =
       "position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;visibility:hidden";
     document.body.appendChild(iframe);
-
     try {
       for (let i = 0; i < studentList.length; i++) {
         if (abortRef.current) break;
-
         const student = studentList[i];
-        setBulkProgress({
-          total: studentList.length,
-          current: i + 1,
-          currentName: student.studentName,
-          done: false,
-        });
-
-        const params = new URLSearchParams({
-          studentId: student.studentId,
-          classIds:  classIdsStr,
-          examType,
-        });
-
-        await new Promise((resolve) => {
-          iframe.onload = resolve;
-          iframe.src = `/report-card?${params.toString()}`;
-        });
-
+        setBulkProgress({ total: studentList.length, current: i + 1, currentName: student.studentName, done: false });
+        const params = new URLSearchParams({ studentId: student.studentId, classIds: classIdsStr, examType });
+        const resolvedPeriodId = periodId || results?.periodId;
+        if (resolvedPeriodId) params.append("periodId", resolvedPeriodId);
+        await new Promise((resolve) => { iframe.onload = resolve; iframe.src = `/report-card?${params.toString()}`; });
         await new Promise((r) => setTimeout(r, 2000));
-
         const rcRoot = iframe.contentDocument?.getElementById("rc-root");
         if (!rcRoot) continue;
-
         const cleanName = student.studentName?.replace(/\s+/g, "_") ?? "Student";
         const filename  = `${cleanName}_ID${student.studentId}_${examLabel.replace(/\s+/g, "_")}.pdf`;
-
         const pdfBlob = await html2pdf()
-          .set({
-            margin:      0,
-            filename,
-            image:       { type: "jpeg", quality: 0.97 },
-            html2canvas: { scale: 2, useCORS: true, width: 794, height: 1123, logging: false },
-            jsPDF:       { unit: "px", format: [794, 1123], orientation: "portrait" },
-          })
-          .from(rcRoot)
-          .outputPdf("blob");
-
+          .set({ margin: 0, filename, image: { type: "jpeg", quality: 0.97 }, html2canvas: { scale: 2, useCORS: true, width: 794, height: 1123, logging: false }, jsPDF: { unit: "px", format: [794, 1123], orientation: "portrait" } })
+          .from(rcRoot).outputPdf("blob");
         zip.file(filename, pdfBlob);
       }
     } finally {
       document.body.removeChild(iframe);
     }
-
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    const zipName = `ReportCards_${examLabel.replace(/\s+/g, "_")}_${new Date()
-      .toISOString()
-      .slice(0, 10)}.zip`;
-    saveAs(zipBlob, zipName);
-
+    saveAs(zipBlob, `ReportCards_${examLabel.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.zip`);
     setBulkProgress((prev) => ({ ...prev, done: true }));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500 text-lg">Loading…</p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="space-y-6">
+      <Sk className="h-8 w-48" />
+      <div className="grid grid-cols-3 gap-4"><Sk className="h-32" /><Sk className="h-32" /><Sk className="h-32" /></div>
+      <Sk className="h-64" />
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
 
-      {/* Bulk progress modal */}
       {bulkProgress && (
         <BulkProgressModal
-          total={bulkProgress.total}
-          current={bulkProgress.current}
-          currentName={bulkProgress.currentName}
-          done={bulkProgress.done}
+          total={bulkProgress.total} current={bulkProgress.current}
+          currentName={bulkProgress.currentName} done={bulkProgress.done}
           onClose={() => setBulkProgress(null)}
         />
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Generate Results</h1>
-          <p className="text-gray-600">Select classes and exam type to generate ranked results</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Generate Results</h1>
+          <p className="text-gray-500 mt-0.5">Select classes and exam type to generate ranked results</p>
         </div>
-        <div className="flex items-center gap-2">
-          {results && (
-            <>
-              <button
-                onClick={handleExportExcel}
-                className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
-              >
-                <Download size={16} /> Export Excel
-              </button>
-
-              <button
-                onClick={handleBulkDownload}
-                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
-              >
-                <Package size={16} /> Download All PDFs
-              </button>
-
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
-              >
-                <RefreshCw size={16} /> New Results
-              </button>
-            </>
-          )}
-        </div>
+        {results && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm
+                hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+              <Download size={16} /> Export Excel
+            </button>
+            <button
+              onClick={handleBulkDownload}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-sm
+                hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+              <Package size={16} /> Download All PDFs
+            </button>
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                border border-gray-200 text-gray-600 bg-white hover:bg-gray-50
+                hover:-translate-y-0.5 transition-all duration-200 shadow-sm">
+              <RefreshCw size={16} /> New Results
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* ── Error ── */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-          {error}
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700
+          rounded-xl px-4 py-3 text-sm">
+          <AlertTriangle size={15} className="shrink-0" /> {error}
         </div>
       )}
 
       {/* ── Selection Panel ── */}
       {!results && (
-        <div className="bg-white rounded-xl shadow-sm border p-6 space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-7">
+
+          {/* Step 1 — Classes */}
           <div>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
-              Step 1 — Select Class(es)
-            </p>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700
+                flex items-center justify-center text-white text-xs font-bold shadow-sm">1</span>
+              <p className="text-sm font-bold text-gray-700 uppercase tracking-wider">Select Class(es)</p>
+            </div>
+
             <div className="space-y-4">
               {sortedForms.map((formNumber) => {
                 const streamClasses = formGroups[formNumber];
                 const allSelected   = allStreamsSelected(formNumber);
                 return (
-                  <div key={`form-group-${formNumber}`} className="border rounded-xl p-4">
+                  <div key={`form-group-${formNumber}`}
+                    className="border border-gray-100 rounded-2xl p-4 hover:border-gray-200 transition-colors">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-semibold text-gray-700">Form {formNumber}</span>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${getFormGradient(formNumber)}
+                          flex items-center justify-center text-white font-bold text-xs shadow-sm`}>
+                          G{formNumber}
+                        </div>
+                        <span className="font-bold text-gray-800 text-sm">Grade {formNumber}</span>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-lg">
+                          {streamClasses.length} stream{streamClasses.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
                       <button
                         onClick={() => selectAllStreams(formNumber)}
-                        className={`text-xs px-3 py-1 rounded-full border font-medium transition-all ${
+                        className={`text-xs px-3 py-1.5 rounded-xl border-2 font-semibold transition-all ${
                           allSelected
-                            ? "bg-blue-600 border-blue-600 text-white"
-                            : "border-gray-300 text-gray-500 hover:border-blue-400"
-                        }`}
-                      >
-                        {allSelected ? "✓ All Streams" : "Select All Streams"}
+                            ? `bg-gradient-to-r ${getFormGradient(formNumber)} border-transparent text-white shadow-sm`
+                            : "border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-600"
+                        }`}>
+                        {allSelected ? "✓ All Selected" : "Select All"}
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -412,12 +401,11 @@ const Results = () => {
                         <button
                           key={`cls-${c.classId}`}
                           onClick={() => toggleClass(c.classId)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all ${
                             selectedClassIds.includes(c.classId)
-                              ? "bg-blue-600 border-blue-600 text-white"
-                              : "border-gray-200 text-gray-600 hover:border-blue-300"
-                          }`}
-                        >
+                              ? `bg-gradient-to-r ${getFormGradient(formNumber)} border-transparent text-white shadow-sm`
+                              : "border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600"
+                          }`}>
                           {c.className}
                         </button>
                       ))}
@@ -428,51 +416,112 @@ const Results = () => {
             </div>
           </div>
 
+          {/* Divider */}
+          <div className="h-px bg-gray-100" />
+
+          {/* Step 2 — Academic Term */}
           <div>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
-              Step 2 — Select Exam Type
-            </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-3 mb-5">
+              <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600
+                flex items-center justify-center text-white text-xs font-bold shadow-sm">2</span>
+              <p className="text-sm font-bold text-gray-700 uppercase tracking-wider">Select Academic Term</p>
+            </div>
+            <select
+              value={periodId}
+              onChange={(e) => { setPeriodId(e.target.value); setResults(null); }}
+              className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white
+                focus:outline-none focus:ring-2 focus:ring-teal-400 min-w-[240px]">
+              <option value="">
+                Current term{currentPeriod ? ` (${currentPeriod.year} · Term ${currentPeriod.term})` : ""}
+              </option>
+              {allPeriods.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.year} · Term {p.term}{p.status === "CLOSED" ? " (closed)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="h-px bg-gray-100" />
+
+          {/* Step 3 — Exam Type */}
+          <div>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-700
+                flex items-center justify-center text-white text-xs font-bold shadow-sm">3</span>
+              <p className="text-sm font-bold text-gray-700 uppercase tracking-wider">Select Exam Type</p>
+            </div>
+            <div className="flex flex-wrap gap-2.5">
               {EXAM_TYPES.map((et) => (
                 <button
                   key={et.value}
                   onClick={() => { setExamType(et.value); setResults(null); }}
-                  className={`px-4 py-2.5 rounded-lg text-sm font-bold border-2 transition-all ${
+                  className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
                     examType === et.value
-                      ? "bg-purple-600 border-purple-600 text-white"
-                      : "border-gray-200 text-gray-600 hover:border-purple-300"
-                  }`}
-                >
+                      ? `bg-gradient-to-r ${et.gradient} border-transparent text-white shadow-sm`
+                      : "border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-600"
+                  }`}>
                   {et.label}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t">
-            <div className="text-sm space-y-1">
-              {selectedClassIds.length > 0
-                ? <p className="text-blue-700 font-medium">✓ {selectedClassIds.length} class{selectedClassIds.length > 1 ? "es" : ""} selected</p>
-                : <p className="text-gray-400">No classes selected</p>
-              }
-              {examType
-                ? <p className="text-purple-700 font-medium">✓ {EXAM_TYPES.find((e) => e.value === examType)?.label} selected</p>
-                : <p className="text-gray-400">No exam type selected</p>
-              }
+          {/* Divider */}
+          <div className="h-px bg-gray-100" />
+
+          {/* Step 4 — Generate */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6 text-sm flex-wrap">
+              <div className={`flex items-center gap-2 ${selectedClassIds.length > 0 ? "text-blue-700" : "text-gray-400"}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
+                  ${selectedClassIds.length > 0 ? "bg-blue-100" : "bg-gray-100"}`}>
+                  {selectedClassIds.length > 0 ? "✓" : "·"}
+                </div>
+                {selectedClassIds.length > 0
+                  ? <span className="font-semibold">{selectedClassIds.length} class{selectedClassIds.length > 1 ? "es" : ""} selected</span>
+                  : <span>No classes selected</span>}
+              </div>
+              <div className={`flex items-center gap-2 ${(periodId || currentPeriod) ? "text-teal-700" : "text-gray-400"}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
+                  ${(periodId || currentPeriod) ? "bg-teal-100" : "bg-gray-100"}`}>
+                  {(periodId || currentPeriod) ? "✓" : "·"}
+                </div>
+                {(periodId || currentPeriod)
+                  ? <span className="font-semibold">
+                      {periodId
+                        ? (() => { const p = allPeriods.find((x) => String(x.id) === String(periodId)); return p ? `${p.year} · Term ${p.term}` : "Term selected"; })()
+                        : `${currentPeriod.year} · Term ${currentPeriod.term} (current)`}
+                    </span>
+                  : <span>No term selected</span>}
+              </div>
+              <div className={`flex items-center gap-2 ${examType ? "text-violet-700" : "text-gray-400"}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
+                  ${examType ? "bg-violet-100" : "bg-gray-100"}`}>
+                  {examType ? "✓" : "·"}
+                </div>
+                {examType
+                  ? <span className="font-semibold">{EXAM_TYPES.find((e) => e.value === examType)?.label}</span>
+                  : <span>No exam type selected</span>}
+              </div>
             </div>
+
             <button
               onClick={handleGenerate}
               disabled={!canGenerate || generating}
-              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Zap size={18} />
-              <span>{generating ? "Generating…" : "Generate Results"}</span>
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold
+                bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-sm
+                hover:shadow-md hover:-translate-y-0.5 transition-all duration-200
+                disabled:opacity-50 disabled:translate-y-0 disabled:cursor-not-allowed">
+              <Zap size={16} />
+              {generating ? "Generating…" : "Generate Results"}
             </button>
           </div>
 
           {genError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-              <AlertTriangle size={16} /><span>{genError}</span>
+            <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700
+              rounded-xl px-4 py-3 text-sm">
+              <AlertTriangle size={15} className="shrink-0" /> {genError}
             </div>
           )}
         </div>
@@ -480,55 +529,81 @@ const Results = () => {
 
       {/* ── Results Panel ── */}
       {results && (
-        <div className="space-y-4">
+        <div className="space-y-5">
 
-          {/* Stats bar */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
-              <div><p className="text-sm text-gray-500">Students Ranked</p><p className="text-2xl font-bold mt-1">{studentList.length}</p></div>
-              <Users className="h-8 w-8 text-blue-500" />
+          {(results.periodYear != null) && (
+            <div className="text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+              Results for <strong>{results.periodYear} · Term {results.periodTerm}</strong>
             </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
-              <div><p className="text-sm text-gray-500">Subjects</p><p className="text-2xl font-bold mt-1">{subjectNames.length}</p></div>
-              <BookOpen className="h-8 w-8 text-green-500" />
-            </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
-              <div><p className="text-sm text-gray-500">Overall Average</p><p className="text-2xl font-bold mt-1">{results.overallAverage}</p></div>
-              <BarChart className="h-8 w-8 text-purple-500" />
-            </div>
-            <div className={`p-4 rounded-xl shadow-sm border flex items-center justify-between ${results.hasIssues ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}`}>
-              <div>
-                <p className={`text-sm ${results.hasIssues ? "text-red-600" : "text-green-600"}`}>
-                  {results.hasIssues ? "Issues Found" : "All Complete"}
-                </p>
-                <p className="text-2xl font-bold mt-1">{results.hasIssues ? issueStudents.length : "✓"}</p>
+          )}
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            {[
+              {
+                label: "Students Ranked", value: studentList.length,
+                icon: <Users size={20} className="text-white" />,
+                gradient: "bg-gradient-to-br from-blue-500 to-blue-700",
+              },
+              {
+                label: "Subjects", value: subjectNames.length,
+                icon: <BookOpen size={20} className="text-white" />,
+                gradient: "bg-gradient-to-br from-emerald-500 to-teal-600",
+              },
+              {
+                label: "Overall Average", value: results.overallAverage,
+                icon: <BarChart size={20} className="text-white" />,
+                gradient: "bg-gradient-to-br from-violet-500 to-purple-700",
+              },
+              results.hasIssues
+                ? {
+                    label: "Issues Found", value: issueStudents.length,
+                    icon: <AlertTriangle size={20} className="text-white" />,
+                    gradient: "bg-gradient-to-br from-orange-400 to-rose-500",
+                  }
+                : {
+                    label: "All Complete", value: "✓",
+                    icon: <CheckCircle size={20} className="text-white" />,
+                    gradient: "bg-gradient-to-br from-emerald-500 to-teal-600",
+                  },
+            ].map(({ label, value, icon, gradient }) => (
+              <div key={label} className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${gradient}`}>
+                <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10" />
+                <div className="absolute -right-2 -bottom-6 w-32 h-32 rounded-full bg-white/5" />
+                <div className="relative z-10 flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-semibold opacity-80">{label}</p>
+                    <p className="text-3xl font-extrabold tracking-tight mt-1">{value}</p>
+                  </div>
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    {icon}
+                  </div>
+                </div>
               </div>
-              {results.hasIssues
-                ? <AlertTriangle className="h-8 w-8 text-red-500" />
-                : <CheckCircle className="h-8 w-8 text-green-500" />
-              }
-            </div>
+            ))}
           </div>
 
           {/* Issues banner */}
           {results.hasIssues && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+                  <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                    <AlertTriangle size={18} className="text-red-600" />
+                  </div>
                   <div>
-                    <p className="text-sm font-semibold text-red-800">
+                    <p className="text-sm font-bold text-red-800">
                       {issueStudents.length} student{issueStudents.length > 1 ? "s have" : " has"} missing marks
                     </p>
-                    <p className="text-xs text-red-600 mt-0.5">
+                    <p className="text-xs text-red-500 mt-0.5">
                       Results include these students but their totals are incomplete.
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowIssues((p) => !p)}
-                  className="text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-1"
-                >
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-red-600 text-white
+                    rounded-xl font-semibold hover:bg-red-700 transition-colors">
                   {showIssues ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   {showIssues ? "Hide" : "Show"} Issues
                 </button>
@@ -536,20 +611,16 @@ const Results = () => {
               {showIssues && (
                 <div className="mt-4 space-y-2">
                   {issueStudents.map((s) => (
-                    <div
-                      key={`issue-${s.studentId}`}
-                      className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border border-red-100"
-                    >
+                    <div key={`issue-${s.studentId}`}
+                      className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-red-100">
                       <div>
-                        <span className="font-medium text-gray-900">{s.studentName}</span>
-                        <span className="ml-2 text-xs text-gray-500">({s.className})</span>
+                        <span className="font-semibold text-gray-900 text-sm">{s.studentName}</span>
+                        <span className="ml-2 text-xs text-gray-400">({s.className})</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {(s.missingSubjects ?? []).map((subj) => (
-                          <span
-                            key={`miss-${s.studentId}-${subj}`}
-                            className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-medium"
-                          >
+                          <span key={`miss-${s.studentId}-${subj}`}
+                            className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-semibold">
                             Missing: {subj}
                           </span>
                         ))}
@@ -561,81 +632,88 @@ const Results = () => {
             </div>
           )}
 
-          {/* Search */}
-          <div className="bg-white rounded-xl shadow-sm border p-4 flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="Search student…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+          {/* Search bar */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search student…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm
+                    focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg">
+                  {filteredStudents.length} of {studentList.length} students
+                </span>
+                <span className="text-xs text-violet-600 font-semibold flex items-center gap-1
+                  bg-violet-50 px-3 py-1.5 rounded-lg border border-violet-100">
+                  <Package size={12} /> ZIP available above
+                </span>
+              </div>
             </div>
-            <span className="text-sm text-gray-500">{filteredStudents.length} of {studentList.length} students</span>
-            <span className="ml-auto text-xs text-indigo-600 font-medium flex items-center gap-1">
-              <Package size={13} /> Use "Download All PDFs" to get every report card as a ZIP
-            </span>
           </div>
 
           {/* Results Table */}
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-4 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Rank</th>
+                    <th className="px-4 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Student</th>
+                    <th className="px-4 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Class</th>
                     {subjectNames.map((subj) => (
-                      <th
-                        key={`th-${subj}`}
-                        className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap"
-                        colSpan={2}
-                      >
+                      <th key={`th-${subj}`}
+                        className="px-4 py-3.5 text-center text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                        colSpan={2}>
                         {subj}
                       </th>
                     ))}
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-blue-50">Total Marks</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-purple-50">Total Points</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-teal-50 whitespace-nowrap">Report Card</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50">Total Marks</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-bold text-violet-600 uppercase tracking-wider bg-violet-50">Total Pts</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-bold text-teal-600 uppercase tracking-wider bg-teal-50 whitespace-nowrap">Report Card</th>
                   </tr>
                   <tr className="bg-gray-100 border-t border-gray-200">
                     <th colSpan={3} />
                     {subjectNames.map((subj) => (
                       <React.Fragment key={`sub-th-${subj}`}>
-                        <th className="px-3 py-1.5 text-center text-xs text-gray-400 font-medium">Marks</th>
-                        <th className="px-3 py-1.5 text-center text-xs text-gray-400 font-medium">GP</th>
+                        <th className="px-3 py-1.5 text-center text-xs text-gray-400 font-semibold">Marks</th>
+                        <th className="px-3 py-1.5 text-center text-xs text-gray-400 font-semibold">GP</th>
                       </React.Fragment>
                     ))}
                     <th className="bg-blue-50" />
-                    <th className="bg-purple-50" />
+                    <th className="bg-violet-50" />
                     <th className="bg-teal-50" />
                   </tr>
                 </thead>
 
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-100">
                   {filteredStudents.map((student) => {
                     const totalPoints = calcTotalPoints(student);
                     return (
-                      <tr
-                        key={`result-${student.studentId}`}
-                        className={`transition-colors ${student.hasIssues ? "bg-red-50 hover:bg-red-100" : "hover:bg-gray-50"}`}
-                      >
+                      <tr key={`result-${student.studentId}`}
+                        className={`transition-colors ${
+                          student.hasIssues ? "bg-red-50 hover:bg-red-100" : "hover:bg-gray-50"
+                        }`}>
                         {/* Rank */}
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold border ${getRankColor(student.rank)}`}>
+                          <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full
+                            text-sm font-bold border-2 ${getRankColor(student.rank)}`}>
                             {getRankIcon(student.rank)}
                           </span>
                         </td>
 
-                        {/* Student name */}
+                        {/* Student */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             {student.hasIssues && <AlertTriangle size={14} className="text-red-500 shrink-0" />}
                             <div>
-                              <div className="font-semibold text-gray-900 whitespace-nowrap">{student.studentName}</div>
+                              <div className="font-semibold text-gray-900 text-sm whitespace-nowrap">{student.studentName}</div>
                               <div className="text-xs text-gray-400">ID #{student.studentId}</div>
                             </div>
                           </div>
@@ -643,41 +721,29 @@ const Results = () => {
 
                         {/* Class */}
                         <td className="px-4 py-3">
-                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full whitespace-nowrap">
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg font-medium whitespace-nowrap">
                             {student.className}
                           </span>
                         </td>
 
-                        {/* Subject columns — enrollment-aware */}
+                        {/* Subject columns */}
                         {subjectNames.map((subj) => {
-                          // Key present in map → enrolled (value may be null if mark missing)
-                          // Key absent → not enrolled in this subject
                           const isEnrolled = subj in (student.subjectMarks ?? {});
-                          const val        = isEnrolled ? student.subjectMarks[subj] : undefined;
-                          const gp         = isEnrolled ? calcGradePoint(val) : undefined;
-
+                          const val = isEnrolled ? student.subjectMarks[subj] : undefined;
+                          const gp  = isEnrolled ? calcGradePoint(val) : undefined;
                           return (
                             <React.Fragment key={`mark-${student.studentId}-${subj}`}>
-                              {/* Marks cell */}
                               <td className="px-3 py-3 text-center">
                                 {!isEnrolled ? (
-                                  // Not taking this subject
-                                  <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-400">
-                                    N/A
-                                  </span>
+                                  <span className="inline-block px-2 py-0.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400">N/A</span>
                                 ) : val == null ? (
-                                  // Enrolled but mark not entered
-                                  <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-600">
-                                    —
-                                  </span>
+                                  <span className="inline-block px-2 py-0.5 rounded-lg text-xs font-bold bg-red-100 text-red-600">—</span>
                                 ) : (
-                                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${getGradeColor(val)}`}>
+                                  <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-bold ${getGradeColor(val)}`}>
                                     {val % 1 === 0 ? val : val.toFixed(1)}
                                   </span>
                                 )}
                               </td>
-
-                              {/* Grade point cell */}
                               <td className="px-3 py-3 text-center">
                                 {!isEnrolled ? (
                                   <span className="text-gray-300 text-xs">N/A</span>
@@ -701,17 +767,19 @@ const Results = () => {
                         </td>
 
                         {/* Total points */}
-                        <td className="px-4 py-3 text-center bg-purple-50">
-                          <span className="font-bold text-purple-800 text-sm">{totalPoints}</span>
+                        <td className="px-4 py-3 text-center bg-violet-50">
+                          <span className="font-bold text-violet-800 text-sm">{totalPoints}</span>
                         </td>
 
-                        {/* Report card button */}
+                        {/* Report card */}
                         <td className="px-4 py-3 text-center bg-teal-50">
                           <button
                             onClick={() => handleViewReportCard(student)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-semibold rounded-lg transition-all whitespace-nowrap shadow-sm"
-                          >
-                            <FileText size={13} /> Report Card
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5
+                              bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700
+                              text-white text-xs font-semibold rounded-xl transition-all
+                              hover:shadow-md active:scale-95 whitespace-nowrap">
+                            <FileText size={12} /> Report Card
                           </button>
                         </td>
                       </tr>
@@ -720,9 +788,9 @@ const Results = () => {
 
                   {/* Class averages row */}
                   {subjectNames.length > 0 && (
-                    <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                    <tr className="bg-gray-50 font-semibold border-t-2 border-gray-200">
                       <td className="px-4 py-3" colSpan={2}>
-                        <span className="text-xs text-gray-600 uppercase font-bold tracking-wide">Class Average</span>
+                        <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Class Average</span>
                       </td>
                       <td className="px-4 py-3" />
                       {subjectNames.map((subj) => {
@@ -745,10 +813,10 @@ const Results = () => {
                           </React.Fragment>
                         );
                       })}
-                      <td className="px-4 py-3 text-center bg-blue-100">
+                      <td className="px-4 py-3 text-center bg-blue-50">
                         <span className="font-bold text-blue-800">{results.overallAverage}</span>
                       </td>
-                      <td className="px-4 py-3 bg-purple-50" />
+                      <td className="px-4 py-3 bg-violet-50" />
                       <td className="px-4 py-3 bg-teal-50" />
                     </tr>
                   )}
@@ -757,9 +825,12 @@ const Results = () => {
             </div>
 
             {filteredStudents.length === 0 && (
-              <div className="text-center py-12">
-                <Trophy className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-500">No students match your search</p>
+              <div className="text-center py-16">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Trophy className="text-gray-300" size={28} />
+                </div>
+                <p className="text-gray-600 font-semibold">No students match your search</p>
+                <p className="text-gray-400 text-sm mt-1">Try a different name or ID</p>
               </div>
             )}
           </div>

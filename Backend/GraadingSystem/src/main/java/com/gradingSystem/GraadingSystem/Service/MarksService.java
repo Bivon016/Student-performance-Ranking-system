@@ -23,13 +23,17 @@ public class MarksService {
     private final SubjectRepo subjectRepo;
     private final ExamRepo    examRepo;
     private final SchoolContextService schoolContextService;
+    private final AcademicPeriodService academicPeriodService;
 
-    public MarksService(Marksrepo marksrepo, StudentRepo studentRepo, SubjectRepo subjectRepo, ExamRepo examRepo, SchoolContextService schoolContextService) {
+    public MarksService(Marksrepo marksrepo, StudentRepo studentRepo, SubjectRepo subjectRepo,
+                        ExamRepo examRepo, SchoolContextService schoolContextService,
+                        AcademicPeriodService academicPeriodService) {
         this.marksrepo = marksrepo;
         this.studentRepo = studentRepo;
         this.subjectRepo = subjectRepo;
         this.examRepo = examRepo;
         this.schoolContextService = schoolContextService;
+        this.academicPeriodService = academicPeriodService;
     }
 
     @Transactional
@@ -41,6 +45,7 @@ public class MarksService {
 
         Exam exam = examRepo.findById(request.getExamId())
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
+        academicPeriodService.assertPeriodIsWritable(exam.getAcademicPeriod());
 
         List<Marks> marksList = new ArrayList<>();
 
@@ -121,6 +126,7 @@ public class MarksService {
     public MarksResponseDTO updateMarks(Long markId, int newMarksValue) {
         Marks marks = marksrepo.findById(markId)
                 .orElseThrow(() -> new RuntimeException("Marks not found"));
+        academicPeriodService.assertPeriodIsWritable(marks.getExam().getAcademicPeriod());
         marks.setMarksValue(newMarksValue);
         return convertToDTO(marksrepo.save(marks));
     }
@@ -131,6 +137,7 @@ public class MarksService {
     public void deleteMarks(Long markId) {
         Marks marks = marksrepo.findById(markId)
                 .orElseThrow(() -> new RuntimeException("Marks not found"));
+        academicPeriodService.assertPeriodIsWritable(marks.getExam().getAcademicPeriod());
         marksrepo.delete(marks);
     }
     public List<StudentComparisonDTO> getExamComparison(Long examId) {

@@ -92,8 +92,11 @@ export function logout() {
   localStorage.removeItem("role");
   localStorage.removeItem("assignments");
 }
-export const getExamsBySubjectAndClass = (subjectId, classId) =>
-  get(`${EXAMS_BASE}/filterByClass?subjectId=${subjectId}&classId=${classId}`);
+export const getExamsBySubjectAndClass = (subjectId, classId, periodId) => {
+  const params = new URLSearchParams({ subjectId, classId });
+  if (periodId) params.append("periodId", periodId);
+  return get(`${EXAMS_BASE}/filterByClass?${params.toString()}`);
+};
 
 export function getRole() {
   return localStorage.getItem("role");
@@ -189,10 +192,19 @@ export const deleteClass    = (id)          => del(`${CLASSES_BASE}/delete/${id}
 
 // ─── Exams ────────────────────────────────────────────────────────────────────
 
-export const getAllExams            = ()                   => get(`${EXAMS_BASE}/all`);
-export const getExamsByForm        = (form)                => get(`${EXAMS_BASE}/form/${form}`);
-export const getExamsBySubjectAndForm = (subjectId, form)  =>
-  get(`${EXAMS_BASE}/filter?subjectId=${subjectId}&form=${form}`);
+export const getAllExams = (periodId) => {
+  const q = periodId ? `?periodId=${periodId}` : "";
+  return get(`${EXAMS_BASE}/all${q}`);
+};
+export const getExamsByForm = (form, periodId) => {
+  const q = periodId ? `?periodId=${periodId}` : "";
+  return get(`${EXAMS_BASE}/form/${form}${q}`);
+};
+export const getExamsBySubjectAndForm = (subjectId, form, periodId) => {
+  const params = new URLSearchParams({ subjectId, form });
+  if (periodId) params.append("periodId", periodId);
+  return get(`${EXAMS_BASE}/filter?${params.toString()}`);
+};
 export const deleteExam            = (examId)              => del(`${EXAMS_BASE}/delete/${examId}`);
 
 /**
@@ -234,10 +246,11 @@ export const updateMarks = (markId, marksValue, subjectId, classId) =>
 
 // ─── Ranking ──────────────────────────────────────────────────────────────────
 
-export async function getResults(classIds, examType) {
+export async function getResults(classIds, examType, periodId) {
   const params = new URLSearchParams();
   classIds.forEach((id) => params.append("classIds", id));
   params.append("examType", examType);
+  if (periodId) params.append("periodId", periodId);
   return get(`${RANKING_BASE}/results?${params.toString()}`);
 }
 export const getStudentsByClass = (classId) => 

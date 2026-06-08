@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   getAllSubjects, getAllExams, createExam, deleteExam, getAllClasses,
-  getCurrentPeriod,
+  getCurrentPeriod, getAllPeriods,
 } from "../services/api";
 import * as XLSX from "xlsx";
 import {
@@ -74,7 +74,7 @@ function SelectAllBar({ onAll, onClear }) {
 }
 
 // ─── Exam Group (collapsible) ─────────────────────────────────────────────────
-function ExamGroup({ examType, rows, subjects, classes, onEdit, onDelete, onView }) {
+function ExamGroup({ examType, rows, subjects, classes, onEdit, onDelete, onView, viewingClosed }) {
   const [open, setOpen] = useState(true);
   const label    = examTypeLabel(examType);
   const gradient = getTypeGradient(examType);
@@ -177,18 +177,22 @@ function ExamGroup({ examType, rows, subjects, classes, onEdit, onDelete, onView
                             hover:bg-emerald-600 hover:text-white transition-colors">
                           <BarChart2 size={12} /> View Marks
                         </button>
-                        <button onClick={() => onEdit(exam)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-                            bg-blue-50 text-blue-600 text-xs font-semibold
-                            hover:bg-blue-600 hover:text-white transition-colors">
-                          <Edit size={12} /> Edit
-                        </button>
-                        <button onClick={() => onDelete(exam.examId)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-                            bg-red-50 text-red-500 text-xs font-semibold
-                            hover:bg-red-500 hover:text-white transition-colors">
-                          <Trash2 size={12} /> Delete
-                        </button>
+                        {!viewingClosed && !exam.readOnly && (
+                          <>
+                            <button onClick={() => onEdit(exam)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                                bg-blue-50 text-blue-600 text-xs font-semibold
+                                hover:bg-blue-600 hover:text-white transition-colors">
+                              <Edit size={12} /> Edit
+                            </button>
+                            <button onClick={() => onDelete(exam.examId)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                                bg-red-50 text-red-500 text-xs font-semibold
+                                hover:bg-red-500 hover:text-white transition-colors">
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -209,7 +213,9 @@ const Exams = () => {
   const [subjects, setSubjects] = useState([]);
   const [exams,    setExams]    = useState([]);
   const [classes,  setClasses]  = useState([]);
-  const [period,   setPeriod]   = useState(null);
+  const [period,       setPeriod]       = useState(null);
+  const [allPeriods,   setAllPeriods]   = useState([]);
+  const [viewPeriodId, setViewPeriodId] = useState("");
 
   const [mode, setMode] = useState(null); // null | "single" | "bulk"
 
@@ -237,15 +243,28 @@ const Exams = () => {
 
   // ── Load ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    Promise.all([getAllSubjects(), getAllExams(), getAllClasses()])
-      .then(([s, e, c]) => { setSubjects(s); setExams(e); setClasses(c); })
+    Promise.all([getAllSubjects(), getAllClasses(), getCurrentPeriod(), getAllPeriods()])
+      .then(([s, c, p, periods]) => {
+        setSubjects(s);
+        setClasses(c);
+        setPeriod(p);
+        setAllPeriods(periods);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    getCurrentPeriod().then(setPeriod).catch(() => setPeriod(null));
-  }, []);
+    const periodId = viewPeriodId || null;
+    getAllExams(periodId)
+      .then(setExams)
+      .catch(console.error);
+  }, [viewPeriodId]);
+
+  const viewingClosed = viewPeriodId
+    ? allPeriods.find((p) => String(p.id) === String(viewPeriodId))?.status === "CLOSED"
+    : false;
+  const canCreateExams = period && period.status !== "CLOSED" && !viewingClosed;
 
   // ── Filtering & grouping ──────────────────────────────────────────────────
   const filteredExams = exams.filter((ex) => {
@@ -416,23 +435,27 @@ const Exams = () => {
           {period && (
             <span className="inline-block mt-1.5 text-xs bg-blue-100 text-blue-700
               px-3 py-1 rounded-full font-semibold">
-              {period.periodYear} · Term {period.periodTerm}
+              Active: {period.year} · Term {period.term}
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => { setMode("bulk"); setBulkDone(null); }}
+            onClick={() => { if (!canCreateExams) return; setMode("bulk"); setBulkDone(null); }}
+            disabled={!canCreateExams}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
               border-2 border-violet-600 text-violet-600
-              hover:bg-violet-50 transition-all duration-200">
+              hover:bg-violet-50 transition-all duration-200
+              disabled:opacity-50 disabled:cursor-not-allowed">
             <Zap size={16} /> Bulk Create
           </button>
           <button
-            onClick={openAdd}
+            onClick={() => { if (!canCreateExams) return; openAdd(); }}
+            disabled={!canCreateExams}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
               bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-sm
-              hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+              hover:shadow-md hover:-translate-y-0.5 transition-all duration-200
+              disabled:opacity-50 disabled:translate-y-0">
             <Plus size={16} /> Single Exam
           </button>
         </div>
@@ -468,6 +491,12 @@ const Exams = () => {
         <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800
           rounded-xl px-4 py-3 text-sm">
           No active academic period. A principal must create and activate one before exams can be created.
+        </div>
+      )}
+      {viewingClosed && (
+        <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 text-gray-700
+          rounded-xl px-4 py-3 text-sm">
+          Viewing a closed term — exams and marks are read-only.
         </div>
       )}
       {classes.length === 0 && (
@@ -773,6 +802,18 @@ const Exams = () => {
       {/* ── Search & Filters ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
         <div className="flex flex-col md:flex-row gap-3 items-start md:items-center flex-wrap">
+          <select
+            value={viewPeriodId}
+            onChange={(e) => setViewPeriodId(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white
+              focus:outline-none focus:ring-2 focus:ring-rose-400 min-w-[180px]">
+            <option value="">Current term</option>
+            {allPeriods.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.year} · Term {p.term}{p.status === "CLOSED" ? " (closed)" : ""}
+              </option>
+            ))}
+          </select>
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input type="text" placeholder="Search subject, class, type, date…"
@@ -824,6 +865,7 @@ const Exams = () => {
               onEdit={openEdit}
               onDelete={handleDelete}
               onView={openDrawer}
+              viewingClosed={viewingClosed}
             />
           ))}
         </div>

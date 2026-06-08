@@ -6,12 +6,12 @@ import com.gradingSystem.GraadingSystem.dto.ExamRequestDTO;
 import com.gradingSystem.GraadingSystem.dto.ExamResponseDTO;
 import com.gradingSystem.GraadingSystem.model.AcademicPeriod;
 import com.gradingSystem.GraadingSystem.model.Exam;
+import com.gradingSystem.GraadingSystem.model.PeriodStatus;
 import com.gradingSystem.GraadingSystem.model.School;
 import com.gradingSystem.GraadingSystem.model.Subjects;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
 
 @Service
 public class ExamService {
@@ -28,50 +28,62 @@ public class ExamService {
         this.schoolContextService = schoolContextService;
     }
 
-    // ── Create exam ───────────────────────────────────────────────────────────
     public ExamResponseDTO createExam(ExamRequestDTO dto) {
         School school = schoolContextService.getCurrentSchool();
         Subjects subject = subjectRepo.findById(dto.getSubjectId())
                 .orElseThrow(() -> new RuntimeException("Subject not found"));
         AcademicPeriod currentPeriod = academicPeriodService.getCurrentPeriod();
+        academicPeriodService.assertPeriodIsWritable(currentPeriod);
 
         Exam exam = new Exam(dto.getExamType(), dto.getExamDate(),
-                dto.getForm(), subject, currentPeriod, dto.getClassId(),school);
+                dto.getForm(), subject, currentPeriod, dto.getClassId(), school);
 
         return convertToDTO(examRepo.save(exam));
     }
-    // ── Get all exams ─────────────────────────────────────────────────────────
-    public List<ExamResponseDTO> getAllExams() {
+
+    public List<ExamResponseDTO> getAllExams(Long periodId) {
         School school = schoolContextService.getCurrentSchool();
-        return examRepo.findBySchool(school).stream().map(this::convertToDTO).toList();
-    }
-
-    //Get exams by subject + form  (used by frontend step 1 filter)
-    public List<ExamResponseDTO> getExamsBySubjectAndForm(Long subjectId, int form) {
-
-        School school = schoolContextService.getCurrentSchool();
-        Subjects subject = subjectRepo.findById(subjectId)
-                .orElseThrow(() -> new RuntimeException("Subject not found"));
-
-        return examRepo.findBySchoolAndSubjectAndForm(school,subject, form)
+        AcademicPeriod period = academicPeriodService.resolvePeriod(periodId);
+        return examRepo.findBySchoolAndAcademicPeriod(school, period)
                 .stream().map(this::convertToDTO).toList();
     }
 
-    // ── Get exams by form only ────────────────────────────────────────────────
-    public List<ExamResponseDTO> getExamsByForm(int form) {
+    public List<ExamResponseDTO> getExamsBySubjectAndForm(Long subjectId, int form, Long periodId) {
         School school = schoolContextService.getCurrentSchool();
-        return examRepo.findBySchoolAndForm(school,form).stream().map(this::convertToDTO).toList();
+        AcademicPeriod period = academicPeriodService.resolvePeriod(periodId);
+        Subjects subject = subjectRepo.findById(subjectId)
+                .orElseThrow(() -> new RuntimeException("Subject not found"));
+
+        return examRepo.findBySchoolAndSubjectAndFormAndAcademicPeriod(school, subject, form, period)
+                .stream().map(this::convertToDTO).toList();
     }
 
-    // ── Delete exam ───────────────────────────────────────────────────────────
+    public List<ExamResponseDTO> getExamsByForm(int form, Long periodId) {
+        School school = schoolContextService.getCurrentSchool();
+        AcademicPeriod period = academicPeriodService.resolvePeriod(periodId);
+        return examRepo.findBySchoolAndFormAndAcademicPeriod(school, form, period)
+                .stream().map(this::convertToDTO).toList();
+    }
+
     public void deleteExam(Long examId) {
         Exam exam = examRepo.findById(examId)
                 .orElseThrow(() -> new RuntimeException("Exam not found"));
+        academicPeriodService.assertPeriodIsWritable(exam.getAcademicPeriod());
         examRepo.delete(exam);
     }
 
-    // ── Converter ─────────────────────────────────────────────────────────────
+    public List<ExamResponseDTO> getExamsBySubjectAndClass(Long subjectId, Long classId, Long periodId) {
+        School school = schoolContextService.getCurrentSchool();
+        AcademicPeriod period = academicPeriodService.resolvePeriod(periodId);
+        Subjects subject = subjectRepo.findById(subjectId)
+                .orElseThrow(() -> new RuntimeException("Subject not found"));
+        return examRepo.findBySchoolAndSubjectAndClassIdAndAcademicPeriod(school, subject, classId, period)
+                .stream().map(this::convertToDTO).toList();
+    }
+
     private ExamResponseDTO convertToDTO(Exam e) {
+        AcademicPeriod period = e.getAcademicPeriod();
+        boolean readOnly = period.getStatus() == PeriodStatus.CLOSED;
         return new ExamResponseDTO(
                 e.getExamId(),
                 e.getExamType(),
@@ -79,18 +91,12 @@ public class ExamService {
                 e.getForm(),
                 e.getSubject().getSubjectId(),
                 e.getSubject().getSubjectName(),
-                e.getAcademicPeriod().getId(),        // ← add
-                e.getAcademicPeriod().getYear(),       // ← add
-                e.getAcademicPeriod().getTerm(),     // ← add
+                period.getId(),
+                period.getYear(),
+                period.getTerm(),
+                period.getStatus().name(),
+                readOnly,
                 e.getClassId()
         );
-    }
-
-    public List<ExamResponseDTO> getExamsBySubjectAndClass(Long subjectId, Long classId) {
-        School school = schoolContextService.getCurrentSchool();
-        Subjects subject = subjectRepo.findById(subjectId)
-                .orElseThrow(() -> new RuntimeException("Subject not found"));
-        return examRepo.findBySchoolAndSubjectAndClassId(school,subject, classId)
-                .stream().map(this::convertToDTO).toList();
     }
 }

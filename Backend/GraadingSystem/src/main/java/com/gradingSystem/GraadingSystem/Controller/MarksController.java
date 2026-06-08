@@ -84,8 +84,10 @@ public class MarksController {
 
     @GetMapping("/grades/{studentId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getStudentGrades(@PathVariable Long studentId) {
-        return ResponseEntity.ok(gradeService.getStudentGrades(studentId));
+    public ResponseEntity<?> getStudentGrades(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) Long periodId) {
+        return ResponseEntity.ok(gradeService.getStudentGrades(studentId, periodId));
     }
 
     //debugging

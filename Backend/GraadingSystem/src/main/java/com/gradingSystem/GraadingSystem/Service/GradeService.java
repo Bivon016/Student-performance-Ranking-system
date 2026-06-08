@@ -15,20 +15,27 @@ import java.util.Map;
 public class GradeService {
     private final Marksrepo marksrepo;
     private final StudentRepo studentrepo;
-    private final SchoolContextService  schoolContextService;
+    private final SchoolContextService schoolContextService;
+    private final AcademicPeriodService academicPeriodService;
 
-    public GradeService(Marksrepo marksrepo, StudentRepo studentrepo, SchoolContextService schoolContextService) {
+    public GradeService(Marksrepo marksrepo, StudentRepo studentrepo,
+                        SchoolContextService schoolContextService,
+                        AcademicPeriodService academicPeriodService) {
         this.marksrepo = marksrepo;
         this.studentrepo = studentrepo;
         this.schoolContextService = schoolContextService;
+        this.academicPeriodService = academicPeriodService;
     }
 
-    public Map<String, Double> getStudentGrades(Long studentId){
+    public Map<String, Double> getStudentGrades(Long studentId, Long periodId) {
         School school = schoolContextService.getCurrentSchool();
-        Students student = studentrepo.findByIdAndSchool(studentId,school)
+        Students student = studentrepo.findByIdAndSchool(studentId, school)
                 .orElseThrow(() -> new RuntimeException("Student not found"));
 
-        List<Marks> studentMarks = marksrepo.findByStudent(student);
+        Long resolvedPeriodId = academicPeriodService.resolvePeriod(periodId).getId();
+        List<Marks> studentMarks = marksrepo.findByStudent(student).stream()
+                .filter(m -> m.getExam().getAcademicPeriod().getId().equals(resolvedPeriodId))
+                .toList();
 
         Map<String, Double> grades = new HashMap<>();
 

@@ -37,10 +37,11 @@ public class RankingController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getResults(
             @RequestParam List<Long> classIds,
-            @RequestParam String examType) {
+            @RequestParam String examType,
+            @RequestParam(required = false) Long periodId) {
         try {
             ExamType type = ExamType.valueOf(examType.toUpperCase());
-            ResultsResponseDTO results = rankingService.generateResults(classIds, type);
+            ResultsResponseDTO results = rankingService.generateResults(classIds, type, periodId);
             return ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid exam type: " + examType);
