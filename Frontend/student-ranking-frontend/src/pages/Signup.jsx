@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, School, KeyRound, ChevronDown, ChevronUp } from 'lucide-react';
 import { API_BASE } from '../config';
+import { UserMessage } from '../components/UserMessage';
+import { getFriendlyError, readErrorMessage } from '../utils/errorMessages';
 
 const Signup = () => {
   const [username,      setUsername]      = useState('');
@@ -33,19 +35,17 @@ const Signup = () => {
         }),
       });
 
-      const text = await response.text();
-
       if (response.ok) {
         setSuccess('Account created! Redirecting to login...');
         setTimeout(() => navigate('/login'), 1500);
-      } else if (response.status === 409 || text.includes('taken')) {
+      } else if (response.status === 409) {
         setError('Username already taken. Please choose another.');
       } else {
-        setError(text || 'Signup failed. Please try again.');
+        const serverMsg = await readErrorMessage(response);
+        setError(getFriendlyError(serverMsg || 'Signup failed'));
       }
     } catch (err) {
-      console.error(err);
-      setError('Failed to connect to server.');
+      setError(getFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -73,14 +73,10 @@ const Signup = () => {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-              {error}
-            </div>
+            <UserMessage message={error} onDismiss={() => setError('')} className="mb-4" />
           )}
           {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded-lg text-sm">
-              {success}
-            </div>
+            <UserMessage type="success" message={success} className="mb-4" />
           )}
 
           <form onSubmit={handleSignup} className="space-y-5">

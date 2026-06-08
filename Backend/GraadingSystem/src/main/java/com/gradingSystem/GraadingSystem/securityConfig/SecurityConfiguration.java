@@ -45,6 +45,7 @@ public class SecurityConfiguration {
                   .authorizeHttpRequests(auth -> auth
                           .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                           .requestMatchers("/auth/**", "/public/**").permitAll()
+                          .requestMatchers(org.springframework.http.HttpMethod.GET, "/uploads/**").permitAll()
                           .anyRequest().authenticated()
                   )
                   .sessionManagement(session ->

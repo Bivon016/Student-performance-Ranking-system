@@ -27,6 +27,7 @@ import {
   getCurrentPeriod,
   getRole,
 } from '../services/api';
+import { UserMessage } from './UserMessage';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const avg = (arr) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0);
@@ -86,15 +87,7 @@ const Bar = ({ value, max, color = 'bg-blue-500' }) => (
 
 // ─── Error Banner ─────────────────────────────────────────────────────────────
 const ErrorBanner = ({ message, onRetry }) => (
-  <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-6">
-    <AlertCircle size={18} className="shrink-0" />
-    <span className="flex-1 text-sm">{message}</span>
-    {onRetry && (
-      <button onClick={onRetry} className="flex items-center gap-1 text-sm font-medium hover:underline">
-        <RefreshCw size={14} /> Retry
-      </button>
-    )}
-  </div>
+  <UserMessage message={message} onRetry={onRetry} className="mb-6" />
 );
 
 // ─── Loading Skeleton ─────────────────────────────────────────────────────────

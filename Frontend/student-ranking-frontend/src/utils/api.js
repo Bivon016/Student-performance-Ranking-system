@@ -1,4 +1,5 @@
 import { API_BASE } from "../config";
+import { getFriendlyError } from "./errorMessages";
 
 const AUTH_BASE = `${API_BASE}/auth`;
 
@@ -21,7 +22,7 @@ export async function login(username, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
-  if (!res.ok) throw new Error("Login failed");
+  if (!res.ok) throw new Error(getFriendlyError("Login failed"));
 
   const data = await res.json();
   localStorage.setItem("token", data.token);

@@ -7,6 +7,9 @@ import {
   ChevronUp, Search, BarChart, Users, BookOpen,
   Zap, RefreshCw, Download, FileText, Package, Filter,
 } from "lucide-react";
+import { UserMessage } from "../components/UserMessage";
+import { getFriendlyError } from "../utils/errorMessages";
+import { useTheme } from "../contexts/ThemeContext";
 
 const EXAM_TYPES = [
   { value: "FINAL_EXAM", label: "Final Exam",  gradient: "from-blue-500 to-blue-700" },
@@ -27,21 +30,49 @@ const FORM_GRADIENTS = [
 ];
 const getFormGradient = (f) => FORM_GRADIENTS[(f - 1) % FORM_GRADIENTS.length];
 
-const RANK_STYLES = [
-  "bg-yellow-100 text-yellow-800 border-yellow-300",
-  "bg-gray-100   text-gray-700   border-gray-300",
-  "bg-orange-100 text-orange-700 border-orange-300",
-];
-const getRankColor = (rank) => RANK_STYLES[rank - 1] ?? "bg-white text-gray-700 border-gray-200";
+const RANK_STYLES = {
+  light: [
+    "bg-yellow-100 text-yellow-800 border-yellow-300",
+    "bg-gray-100 text-gray-700 border-gray-300",
+    "bg-orange-100 text-orange-700 border-orange-300",
+  ],
+  dark: [
+    "bg-yellow-900/50 text-yellow-300 border-yellow-600",
+    "bg-gray-700 text-gray-200 border-gray-500",
+    "bg-orange-900/50 text-orange-300 border-orange-600",
+  ],
+};
+const getRankColor = (rank, isDark) =>
+  RANK_STYLES[isDark ? "dark" : "light"][rank - 1]
+  ?? (isDark ? "bg-gray-700 text-gray-200 border-gray-600" : "bg-white text-gray-700 border-gray-200");
 const getRankIcon  = (rank) => rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
 
-const getGradeColor = (val) => {
-  if (val == null) return "bg-red-100 text-red-600";
-  if (val >= 90)   return "bg-green-100 text-green-800";
-  if (val >= 80)   return "bg-blue-100 text-blue-800";
-  if (val >= 70)   return "bg-yellow-100 text-yellow-800";
-  if (val >= 60)   return "bg-orange-100 text-orange-800";
-  return                  "bg-red-100 text-red-800";
+const GRADE_COLORS = {
+  light: {
+    missing: "bg-red-100 text-red-600",
+    g90: "bg-green-100 text-green-800",
+    g80: "bg-blue-100 text-blue-800",
+    g70: "bg-yellow-100 text-yellow-800",
+    g60: "bg-orange-100 text-orange-800",
+    low: "bg-red-100 text-red-800",
+  },
+  dark: {
+    missing: "bg-red-900/60 text-red-300 border border-red-700/50",
+    g90: "bg-green-900/50 text-green-300",
+    g80: "bg-blue-900/50 text-blue-300",
+    g70: "bg-yellow-900/50 text-yellow-300",
+    g60: "bg-orange-900/50 text-orange-300",
+    low: "bg-red-900/50 text-red-300",
+  },
+};
+const getGradeColor = (val, isDark) => {
+  const c = GRADE_COLORS[isDark ? "dark" : "light"];
+  if (val == null) return c.missing;
+  if (val >= 90) return c.g90;
+  if (val >= 80) return c.g80;
+  if (val >= 70) return c.g70;
+  if (val >= 60) return c.g60;
+  return c.low;
 };
 
 const calcGradePoint = (marks) => {
@@ -53,14 +84,26 @@ const calcGradePoint = (marks) => {
   return 1;
 };
 
-const getGradePointColor = (pt) => {
-  if (pt === 5) return "bg-green-100 text-green-700";
-  if (pt === 4) return "bg-blue-100 text-blue-700";
-  if (pt === 3) return "bg-yellow-100 text-yellow-700";
-  if (pt === 2) return "bg-orange-100 text-orange-700";
-  if (pt === 1) return "bg-red-100 text-red-700";
-  return "bg-gray-100 text-gray-400";
+const GP_COLORS = {
+  light: {
+    5: "bg-green-100 text-green-700",
+    4: "bg-blue-100 text-blue-700",
+    3: "bg-yellow-100 text-yellow-700",
+    2: "bg-orange-100 text-orange-700",
+    1: "bg-red-100 text-red-700",
+    0: "bg-gray-100 text-gray-400",
+  },
+  dark: {
+    5: "bg-green-900/50 text-green-300",
+    4: "bg-blue-900/50 text-blue-300",
+    3: "bg-yellow-900/50 text-yellow-300",
+    2: "bg-orange-900/50 text-orange-300",
+    1: "bg-red-900/50 text-red-300",
+    0: "bg-gray-700 text-gray-400",
+  },
 };
+const getGradePointColor = (pt, isDark) =>
+  GP_COLORS[isDark ? "dark" : "light"][pt] ?? GP_COLORS[isDark ? "dark" : "light"][0];
 
 const calcTotalPoints = (student) =>
   Object.values(student.subjectMarks ?? {})
@@ -72,22 +115,24 @@ const Sk = ({ className }) => (
 );
 
 // ─── Bulk progress modal ───────────────────────────────────────────────────────
-function BulkProgressModal({ total, current, currentName, done, onClose }) {
+function BulkProgressModal({ total, current, currentName, done, onClose, isDark }) {
   const pct = total > 0 ? Math.round((current / total) * 100) : 0;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: "rgba(0,0,0,0.55)" }}>
-      <div className="bg-white rounded-2xl p-8 w-[420px] shadow-2xl text-center">
+      <div className={`rounded-2xl p-8 w-[420px] shadow-2xl text-center ${
+        isDark ? "bg-gray-800 border border-gray-700" : "bg-white"
+      }`}>
         {!done ? (
           <>
             <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Package size={28} className="text-blue-600" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Generating Report Cards</h2>
-            <p className="text-sm text-gray-500 mb-5">
-              {current} of {total} — <strong className="text-gray-700">{currentName}</strong>
+            <h2 className={`text-lg font-bold mb-1 ${isDark ? "text-gray-100" : "text-gray-900"}`}>Generating Report Cards</h2>
+            <p className={`text-sm mb-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+              {current} of {total} — <strong className={isDark ? "text-gray-200" : "text-gray-700"}>{currentName}</strong>
             </p>
-            <div className="bg-gray-100 rounded-full h-2.5 overflow-hidden mb-2">
+            <div className={`rounded-full h-2.5 overflow-hidden mb-2 ${isDark ? "bg-gray-700" : "bg-gray-100"}`}>
               <div
                 className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-600 transition-all duration-300"
                 style={{ width: `${pct}%` }}
@@ -101,8 +146,8 @@ function BulkProgressModal({ total, current, currentName, done, onClose }) {
             <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <CheckCircle size={28} className="text-emerald-500" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900 mb-1">All Done!</h2>
-            <p className="text-sm text-gray-500 mb-6">
+            <h2 className={`text-lg font-bold mb-1 ${isDark ? "text-gray-100" : "text-gray-900"}`}>All Done!</h2>
+            <p className={`text-sm mb-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
               {total} report card{total !== 1 ? "s" : ""} downloaded as a ZIP file.
             </p>
             <button
@@ -119,6 +164,26 @@ function BulkProgressModal({ total, current, currentName, done, onClose }) {
 
 const Results = () => {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
+
+  const cardCls = isDark
+    ? "bg-gray-800 border-gray-700"
+    : "bg-white border-gray-100";
+  const tableHeadCls = isDark ? "bg-gray-800/80" : "bg-gray-50";
+  const tableSubHeadCls = isDark ? "bg-gray-800 border-t border-gray-700" : "bg-gray-100 border-t border-gray-200";
+  const tableBodyCls = isDark ? "bg-gray-800 divide-gray-700" : "bg-white divide-gray-100";
+  const colTotalMarks = isDark ? "bg-blue-950/40" : "bg-blue-50";
+  const colTotalPts = isDark ? "bg-violet-950/40" : "bg-violet-50";
+  const colReport = isDark ? "bg-teal-950/40" : "bg-teal-50";
+  const textTotalMarks = isDark ? "text-blue-300" : "text-blue-800";
+  const textTotalPts = isDark ? "text-violet-300" : "text-violet-800";
+  const thTotalMarks = isDark ? "text-blue-300 bg-blue-950/40" : "text-blue-600 bg-blue-50";
+  const thTotalPts = isDark ? "text-violet-300 bg-violet-950/40" : "text-violet-600 bg-violet-50";
+  const thReport = isDark ? "text-teal-300 bg-teal-950/40" : "text-teal-600 bg-teal-50";
+  const issueRowCls = isDark
+    ? "bg-red-950/25 hover:bg-red-950/40"
+    : "bg-red-50 hover:bg-red-100";
+  const normalRowCls = isDark ? "hover:bg-gray-700/50" : "hover:bg-gray-50";
 
   const [loading,          setLoading]          = useState(true);
   const [classes,          setClasses]          = useState([]);
@@ -196,7 +261,7 @@ const Results = () => {
       setResults(data);
       if (data.hasIssues) setShowIssues(true);
     } catch (err) {
-      setGenError(err?.response?.data || err.message || "Failed to generate results.");
+      setGenError(getFriendlyError(err));
     } finally {
       setGenerating(false);
     }
@@ -311,15 +376,15 @@ const Results = () => {
         <BulkProgressModal
           total={bulkProgress.total} current={bulkProgress.current}
           currentName={bulkProgress.currentName} done={bulkProgress.done}
-          onClose={() => setBulkProgress(null)}
+          onClose={() => setBulkProgress(null)} isDark={isDark}
         />
       )}
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Generate Results</h1>
-          <p className="text-gray-500 mt-0.5">Select classes and exam type to generate ranked results</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Rankings</h1>
+          <p className="text-gray-500 mt-0.5">Generate, view, and export ranked student results</p>
         </div>
         {results && (
           <div className="flex items-center gap-3">
@@ -339,9 +404,12 @@ const Results = () => {
             </button>
             <button
               onClick={handleReset}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
-                border border-gray-200 text-gray-600 bg-white hover:bg-gray-50
-                hover:-translate-y-0.5 transition-all duration-200 shadow-sm">
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                border hover:-translate-y-0.5 transition-all duration-200 shadow-sm ${
+                  isDark
+                    ? "border-gray-600 text-gray-300 bg-gray-800 hover:bg-gray-700"
+                    : "border-gray-200 text-gray-600 bg-white hover:bg-gray-50"
+                }`}>
               <RefreshCw size={16} /> New Results
             </button>
           </div>
@@ -350,15 +418,12 @@ const Results = () => {
 
       {/* ── Error ── */}
       {error && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700
-          rounded-xl px-4 py-3 text-sm">
-          <AlertTriangle size={15} className="shrink-0" /> {error}
-        </div>
+        <UserMessage message={error} />
       )}
 
       {/* ── Selection Panel ── */}
       {!results && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-7">
+        <div className={`rounded-2xl shadow-sm border p-6 space-y-7 ${cardCls}`}>
 
           {/* Step 1 — Classes */}
           <div>
@@ -519,10 +584,7 @@ const Results = () => {
           </div>
 
           {genError && (
-            <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700
-              rounded-xl px-4 py-3 text-sm">
-              <AlertTriangle size={15} className="shrink-0" /> {genError}
-            </div>
+            <UserMessage message={genError} />
           )}
         </div>
       )}
@@ -532,7 +594,11 @@ const Results = () => {
         <div className="space-y-5">
 
           {(results.periodYear != null) && (
-            <div className="text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+            <div className={`text-sm rounded-xl px-4 py-3 border ${
+              isDark
+                ? "text-blue-300 bg-blue-950/30 border-blue-800"
+                : "text-gray-600 bg-blue-50 border-blue-100"
+            }`}>
               Results for <strong>{results.periodYear} · Term {results.periodTerm}</strong>
             </div>
           )}
@@ -585,17 +651,21 @@ const Results = () => {
 
           {/* Issues banner */}
           {results.hasIssues && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+            <div className={`border rounded-2xl p-4 ${
+              isDark ? "bg-red-950/30 border-red-800" : "bg-red-50 border-red-200"
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
-                    <AlertTriangle size={18} className="text-red-600" />
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    isDark ? "bg-red-900/50" : "bg-red-100"
+                  }`}>
+                    <AlertTriangle size={18} className={isDark ? "text-red-400" : "text-red-600"} />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-red-800">
+                    <p className={`text-sm font-bold ${isDark ? "text-red-300" : "text-red-800"}`}>
                       {issueStudents.length} student{issueStudents.length > 1 ? "s have" : " has"} missing marks
                     </p>
-                    <p className="text-xs text-red-500 mt-0.5">
+                    <p className={`text-xs mt-0.5 ${isDark ? "text-red-400" : "text-red-500"}`}>
                       Results include these students but their totals are incomplete.
                     </p>
                   </div>
@@ -612,15 +682,19 @@ const Results = () => {
                 <div className="mt-4 space-y-2">
                   {issueStudents.map((s) => (
                     <div key={`issue-${s.studentId}`}
-                      className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-red-100">
+                      className={`flex items-center justify-between rounded-xl px-4 py-3 border ${
+                        isDark ? "bg-gray-800 border-red-900" : "bg-white border-red-100"
+                      }`}>
                       <div>
-                        <span className="font-semibold text-gray-900 text-sm">{s.studentName}</span>
+                        <span className={`font-semibold text-sm ${isDark ? "text-gray-100" : "text-gray-900"}`}>{s.studentName}</span>
                         <span className="ml-2 text-xs text-gray-400">({s.className})</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {(s.missingSubjects ?? []).map((subj) => (
                           <span key={`miss-${s.studentId}-${subj}`}
-                            className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-semibold">
+                            className={`px-2 py-0.5 text-xs rounded-full font-semibold ${
+                              isDark ? "bg-red-900/60 text-red-300" : "bg-red-100 text-red-700"
+                            }`}>
                             Missing: {subj}
                           </span>
                         ))}
@@ -633,7 +707,7 @@ const Results = () => {
           )}
 
           {/* Search bar */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <div className={`rounded-2xl border shadow-sm p-4 ${cardCls}`}>
             <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -650,8 +724,11 @@ const Results = () => {
                 <span className="text-xs font-medium text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg">
                   {filteredStudents.length} of {studentList.length} students
                 </span>
-                <span className="text-xs text-violet-600 font-semibold flex items-center gap-1
-                  bg-violet-50 px-3 py-1.5 rounded-lg border border-violet-100">
+                <span className={`text-xs font-semibold flex items-center gap-1 px-3 py-1.5 rounded-lg border ${
+                  isDark
+                    ? "text-violet-300 bg-violet-950/40 border-violet-800"
+                    : "text-violet-600 bg-violet-50 border-violet-100"
+                }`}>
                   <Package size={12} /> ZIP available above
                 </span>
               </div>
@@ -659,11 +736,11 @@ const Results = () => {
           </div>
 
           {/* Results Table */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className={`rounded-2xl border shadow-sm overflow-hidden ${cardCls}`}>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-100">
+              <table className={`min-w-full divide-y ${isDark ? "divide-gray-700" : "divide-gray-100"}`}>
                 <thead>
-                  <tr className="bg-gray-50">
+                  <tr className={tableHeadCls}>
                     <th className="px-4 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Rank</th>
                     <th className="px-4 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Student</th>
                     <th className="px-4 py-3.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Class</th>
@@ -674,11 +751,11 @@ const Results = () => {
                         {subj}
                       </th>
                     ))}
-                    <th className="px-4 py-3.5 text-center text-xs font-bold text-blue-600 uppercase tracking-wider bg-blue-50">Total Marks</th>
-                    <th className="px-4 py-3.5 text-center text-xs font-bold text-violet-600 uppercase tracking-wider bg-violet-50">Total Pts</th>
-                    <th className="px-4 py-3.5 text-center text-xs font-bold text-teal-600 uppercase tracking-wider bg-teal-50 whitespace-nowrap">Report Card</th>
+                    <th className={`px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wider ${thTotalMarks}`}>Total Marks</th>
+                    <th className={`px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wider ${thTotalPts}`}>Total Pts</th>
+                    <th className={`px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap ${thReport}`}>Report Card</th>
                   </tr>
-                  <tr className="bg-gray-100 border-t border-gray-200">
+                  <tr className={tableSubHeadCls}>
                     <th colSpan={3} />
                     {subjectNames.map((subj) => (
                       <React.Fragment key={`sub-th-${subj}`}>
@@ -686,24 +763,24 @@ const Results = () => {
                         <th className="px-3 py-1.5 text-center text-xs text-gray-400 font-semibold">GP</th>
                       </React.Fragment>
                     ))}
-                    <th className="bg-blue-50" />
-                    <th className="bg-violet-50" />
-                    <th className="bg-teal-50" />
+                    <th className={colTotalMarks} />
+                    <th className={colTotalPts} />
+                    <th className={colReport} />
                   </tr>
                 </thead>
 
-                <tbody className="bg-white divide-y divide-gray-100">
+                <tbody className={tableBodyCls}>
                   {filteredStudents.map((student) => {
                     const totalPoints = calcTotalPoints(student);
                     return (
                       <tr key={`result-${student.studentId}`}
                         className={`transition-colors ${
-                          student.hasIssues ? "bg-red-50 hover:bg-red-100" : "hover:bg-gray-50"
+                          student.hasIssues ? issueRowCls : normalRowCls
                         }`}>
                         {/* Rank */}
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full
-                            text-sm font-bold border-2 ${getRankColor(student.rank)}`}>
+                            text-sm font-bold border-2 ${getRankColor(student.rank, isDark)}`}>
                             {getRankIcon(student.rank)}
                           </span>
                         </td>
@@ -711,9 +788,9 @@ const Results = () => {
                         {/* Student */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            {student.hasIssues && <AlertTriangle size={14} className="text-red-500 shrink-0" />}
+                            {student.hasIssues && <AlertTriangle size={14} className="text-red-400 shrink-0" />}
                             <div>
-                              <div className="font-semibold text-gray-900 text-sm whitespace-nowrap">{student.studentName}</div>
+                              <div className={`font-semibold text-sm whitespace-nowrap ${isDark ? "text-gray-100" : "text-gray-900"}`}>{student.studentName}</div>
                               <div className="text-xs text-gray-400">ID #{student.studentId}</div>
                             </div>
                           </div>
@@ -721,7 +798,9 @@ const Results = () => {
 
                         {/* Class */}
                         <td className="px-4 py-3">
-                          <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg font-medium whitespace-nowrap">
+                          <span className={`text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap ${
+                            isDark ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
+                          }`}>
                             {student.className}
                           </span>
                         </td>
@@ -735,11 +814,15 @@ const Results = () => {
                             <React.Fragment key={`mark-${student.studentId}-${subj}`}>
                               <td className="px-3 py-3 text-center">
                                 {!isEnrolled ? (
-                                  <span className="inline-block px-2 py-0.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400">N/A</span>
+                                  <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-semibold ${
+                                    isDark ? "bg-gray-700 text-gray-400" : "bg-gray-100 text-gray-400"
+                                  }`}>N/A</span>
                                 ) : val == null ? (
-                                  <span className="inline-block px-2 py-0.5 rounded-lg text-xs font-bold bg-red-100 text-red-600">—</span>
+                                  <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-bold ${
+                                    isDark ? "bg-red-900/60 text-red-300" : "bg-red-100 text-red-600"
+                                  }`}>—</span>
                                 ) : (
-                                  <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-bold ${getGradeColor(val)}`}>
+                                  <span className={`inline-block px-2 py-0.5 rounded-lg text-xs font-bold ${getGradeColor(val, isDark)}`}>
                                     {val % 1 === 0 ? val : val.toFixed(1)}
                                   </span>
                                 )}
@@ -750,7 +833,7 @@ const Results = () => {
                                 ) : gp == null ? (
                                   <span className="text-gray-300 text-xs">—</span>
                                 ) : (
-                                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${getGradePointColor(gp)}`}>
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${getGradePointColor(gp, isDark)}`}>
                                     {gp}
                                   </span>
                                 )}
@@ -760,19 +843,19 @@ const Results = () => {
                         })}
 
                         {/* Total marks */}
-                        <td className="px-4 py-3 text-center bg-blue-50">
-                          <span className="font-bold text-blue-800 text-sm">
+                        <td className={`px-4 py-3 text-center ${colTotalMarks}`}>
+                          <span className={`font-bold text-sm ${textTotalMarks}`}>
                             {student.totalMarks % 1 === 0 ? student.totalMarks : student.totalMarks.toFixed(1)}
                           </span>
                         </td>
 
                         {/* Total points */}
-                        <td className="px-4 py-3 text-center bg-violet-50">
-                          <span className="font-bold text-violet-800 text-sm">{totalPoints}</span>
+                        <td className={`px-4 py-3 text-center ${colTotalPts}`}>
+                          <span className={`font-bold text-sm ${textTotalPts}`}>{totalPoints}</span>
                         </td>
 
                         {/* Report card */}
-                        <td className="px-4 py-3 text-center bg-teal-50">
+                        <td className={`px-4 py-3 text-center ${colReport}`}>
                           <button
                             onClick={() => handleViewReportCard(student)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5
@@ -788,7 +871,9 @@ const Results = () => {
 
                   {/* Class averages row */}
                   {subjectNames.length > 0 && (
-                    <tr className="bg-gray-50 font-semibold border-t-2 border-gray-200">
+                    <tr className={`font-semibold border-t-2 ${
+                      isDark ? "bg-gray-800 border-gray-600" : "bg-gray-50 border-gray-200"
+                    }`}>
                       <td className="px-4 py-3" colSpan={2}>
                         <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Class Average</span>
                       </td>
@@ -799,11 +884,11 @@ const Results = () => {
                         return (
                           <React.Fragment key={`avg-${subj}`}>
                             <td className="px-3 py-3 text-center">
-                              <span className="text-sm font-bold text-gray-700">{avg ?? "—"}</span>
+                              <span className={`text-sm font-bold ${isDark ? "text-gray-300" : "text-gray-700"}`}>{avg ?? "—"}</span>
                             </td>
                             <td className="px-3 py-3 text-center">
                               {gp != null ? (
-                                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${getGradePointColor(gp)}`}>
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${getGradePointColor(gp, isDark)}`}>
                                   {gp}
                                 </span>
                               ) : (
@@ -813,11 +898,11 @@ const Results = () => {
                           </React.Fragment>
                         );
                       })}
-                      <td className="px-4 py-3 text-center bg-blue-50">
-                        <span className="font-bold text-blue-800">{results.overallAverage}</span>
+                      <td className={`px-4 py-3 text-center ${colTotalMarks}`}>
+                        <span className={`font-bold ${textTotalMarks}`}>{results.overallAverage}</span>
                       </td>
-                      <td className="px-4 py-3 bg-violet-50" />
-                      <td className="px-4 py-3 bg-teal-50" />
+                      <td className={`px-4 py-3 ${colTotalPts}`} />
+                      <td className={`px-4 py-3 ${colReport}`} />
                     </tr>
                   )}
                 </tbody>

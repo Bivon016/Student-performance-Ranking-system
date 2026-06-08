@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Lock, Mail, Eye, EyeOff, School } from 'lucide-react';
 import { login } from '../services/api';
 import { APP_URL } from '../config';
+import { UserMessage } from '../components/UserMessage';
+import { getFriendlyError } from '../utils/errorMessages';
 
 const Login = () => {
   const [username,     setUsername]     = useState('');
@@ -25,19 +27,14 @@ const Login = () => {
   window.location.replace(`${APP_URL}/`);
 }
     } catch (err) {
-      console.error(err);
-      if (err.message === 'Login failed') {
-        setError('Invalid username or password.');
-      } else {
-        setError('Failed to connect to server.');
-      }
+      setError(getFriendlyError(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
 
         {/* Header */}
@@ -45,18 +42,16 @@ const Login = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl mb-4">
             <School className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Student Ranking System</h1>
-          <p className="text-gray-600">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">Student Ranking System</h1>
+          <p className="text-gray-600 dark:text-gray-400">Sign in to your account</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Welcome Back</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-transparent dark:border-gray-700">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Welcome Back</h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-              {error}
-            </div>
+            <UserMessage message={error} onDismiss={() => setError('')} className="mb-4" />
           )}
 
           <form onSubmit={handleLogin} className="space-y-6">

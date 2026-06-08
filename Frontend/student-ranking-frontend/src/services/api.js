@@ -1,5 +1,6 @@
 import { apiFetch } from "../utils/api";
 import { API_BASE } from "../config";
+import { getFriendlyError, readErrorMessage } from "../utils/errorMessages";
 
 // ─── Base URLs ────────────────────────────────────────────────────────────────
 const BASE             = API_BASE;
@@ -32,6 +33,29 @@ export const deleteTeacherAssignment = (assignmentId)    => del(`${BASE}/teacher
 export const getAllUsers = () => get(`${AUTH_BASE}/users/all`)
 export const updateRole  = (id, role) => put(`${AUTH_BASE}/users/${id}/role`, { role })
 export const getCurrentSchool = () => get(`${SCHOOL_BASE}/current`);
+
+export async function uploadSchoolLogo(schoolId, file) {
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${SCHOOL_BASE}/${schoolId}/logo`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) await throwApiError(res, 'Logo upload failed');
+  return res.json();
+}
+
+export async function removeSchoolLogo(schoolId) {
+  const res = await apiFetch(`${SCHOOL_BASE}/${schoolId}/logo`, { method: 'DELETE' });
+  if (!res.ok) await throwApiError(res, 'Failed to remove logo');
+  return res.json();
+}
+export const getCurrentUser = () => get(`${AUTH_BASE}/me`);
+export const updateProfile = (data) => put(`${AUTH_BASE}/me`, data);
+export const changePassword = (currentPassword, newPassword) =>
+  put(`${AUTH_BASE}/me/password`, { currentPassword, newPassword });
 
 
 
@@ -67,10 +91,15 @@ export async function login(username, password) {
   localStorage.setItem("token",       data.token);
   localStorage.setItem("role",        data.role);
   localStorage.setItem("assignments", JSON.stringify(data.assignments ?? []));
+  const existing = JSON.parse(localStorage.getItem("user") || "{}");
   localStorage.setItem("user", JSON.stringify({
-    name:  data.name || data.username || username,
-    email: data.email || '',
-    role:  data.role,
+    ...existing,
+    id:       data.id ?? existing.id,
+    name:     data.name || data.username || username,
+    username: data.username || username,
+    email:    data.email || existing.email || '',
+    role:     data.role,
+    schoolName: data.schoolName || existing.schoolName,
   }));
 
   // ✅ Flag for redirect
@@ -124,10 +153,15 @@ export function canEditSubject(subjectId, classId) {
 
 // ─── Generic helpers ──────────────────────────────────────────────────────────
 
+async function throwApiError(res, fallback) {
+  const serverMsg = await readErrorMessage(res);
+  throw new Error(getFriendlyError(serverMsg || `${fallback}: ${res.status}`));
+}
+
 /** GET  → returns parsed JSON */
 async function get(url) {
   const res = await apiFetch(url);
-  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
+  if (!res.ok) await throwApiError(res, "Request failed");
   return res.json();
 }
 
@@ -137,10 +171,7 @@ async function post(url, body) {
     method: "POST",
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || `POST ${url} failed: ${res.status}`);
-  }
+  if (!res.ok) await throwApiError(res, "Request failed");
   return res.json();
 }
 
@@ -150,20 +181,14 @@ async function put(url, body) {
     method: "PUT",
     ...(body !== undefined && { body: JSON.stringify(body) }),
   });
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || `PUT ${url} failed: ${res.status}`);
-  }
+  if (!res.ok) await throwApiError(res, "Request failed");
   return res.json();
 }
 
 /** DELETE → returns true on success */
 async function del(url) {
   const res = await apiFetch(url, { method: "DELETE" });
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || `DELETE ${url} failed: ${res.status}`);
-  }
+  if (!res.ok) await throwApiError(res, "Request failed");
   return true;
 }
 

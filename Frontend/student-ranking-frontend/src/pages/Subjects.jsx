@@ -7,6 +7,7 @@ import {
   BookOpen, Plus, Edit, Trash2, X, Save,
   Search, CheckCircle, Layers, Lock, Unlock,
 } from "lucide-react";
+import { UserMessage } from "../components/UserMessage";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const emptySubject = { subjectName: "", subjectType: "COMPULSORY", optionalGroup: "" };
@@ -303,11 +304,7 @@ const Subjects = () => {
 
       {/* ── Error ── */}
       {error && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700
-          rounded-xl px-4 py-3 text-sm">
-          <X size={15} className="shrink-0" /> {error}
-          <button className="ml-auto" onClick={() => setError(null)}><X size={14} /></button>
-        </div>
+        <UserMessage message={error} onDismiss={() => setError(null)} />
       )}
 
       {/* ── Tabs ── */}

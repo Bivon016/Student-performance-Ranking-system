@@ -4,6 +4,7 @@ import {
   Layers, Save, Loader2, Trash2,
 } from "lucide-react";
 import { useEnrollment } from "../hooks/useEnrollment";
+import { UserMessage } from "./UserMessage";
 
 export default function EnrollmentModal({ student, onClose, onSaved }) {
   const {
@@ -125,10 +126,7 @@ const handleSave = async () => {
           {!loading && (
             <>
               {error && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                  <AlertTriangle size={15} /> {error}
-                  <button className="ml-auto" onClick={() => setError(null)}><X size={14} /></button>
-                </div>
+                <UserMessage message={error} onDismiss={() => setError(null)} />
               )}
 
               {warnings.length > 0 && (

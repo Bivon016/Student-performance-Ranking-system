@@ -7,6 +7,7 @@ import {
     getAllSubjects, getAllClasses,
 } from '../services/api'
 import { Shield, Users, UserCog, BookOpen, Calendar, X, Save, Plus, Trash2, Link, CheckCircle } from 'lucide-react'
+import { UserMessage } from '../components/UserMessage'
 
 const ROLES = [
     { value: 'ROLE_SUBJECT_TEACHER', label: 'Subject Teacher' },
@@ -192,10 +193,7 @@ export default function AdminPanel() {
 
             {/* Alerts */}
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
-                    {error}
-                    <button onClick={() => setError(null)}><X size={16} /></button>
-                </div>
+                <UserMessage message={error} onDismiss={() => setError(null)} />
             )}
             {success && (
                 <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">

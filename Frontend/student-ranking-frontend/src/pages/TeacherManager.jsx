@@ -16,6 +16,8 @@ import {
   ChevronDown, ChevronUp, CheckCircle,
   UserCheck, X, ShieldCheck,
 } from "lucide-react";
+import { UserMessage, Toast } from "../components/UserMessage";
+import { getFriendlyError } from "../utils/errorMessages";
 
 const TeacherManager = () => {
   const [teachers,     setTeachers]     = useState([]);
@@ -41,6 +43,9 @@ const TeacherManager = () => {
   const [newSubjectId, setNewSubjectId] = useState("");
   const [newClassId,   setNewClassId]   = useState("");
   const [addingAssign, setAddingAssign] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const showNotice = (message, type = "error") => setNotice({ message, type });
 
   useEffect(() => {
     Promise.all([
@@ -66,8 +71,7 @@ const TeacherManager = () => {
         setClasses(Array.isArray(c) ? c : []);
       })
       .catch((err) => {
-        console.error("Failed to load TeacherManager data:", err);
-        setLoadError(err.message || "Failed to load data.");
+        setLoadError(getFriendlyError(err));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -94,7 +98,7 @@ const TeacherManager = () => {
 
   const handleAddTeacher = async () => {
     if (!newTeacher.firstName || !newTeacher.secondName || !newTeacher.email) {
-      alert("All fields are required.");
+      showNotice("Please fill in all teacher details.", "warning");
       return;
     }
     setAddingTeacher(true);
@@ -103,8 +107,8 @@ const TeacherManager = () => {
       setTeachers((prev) => [...prev, created]);
       setNewTeacher({ firstName: "", secondName: "", email: "" });
       setShowAddTeacher(false);
-    } catch {
-      alert("Failed to add teacher.");
+    } catch (err) {
+      showNotice(getFriendlyError(err));
     } finally {
       setAddingTeacher(false);
     }
@@ -115,28 +119,35 @@ const TeacherManager = () => {
     try {
       await deleteTeacher(teacherId);
       setTeachers((prev) => prev.filter((t) => t.id !== teacherId));
-    } catch {
-      alert("Failed to delete teacher.");
+    } catch (err) {
+      showNotice(getFriendlyError(err));
     }
   };
 
   const handleLinkUser = async () => {
-    if (!linkUserId) { alert("Select a user account."); return; }
+    if (!linkUserId) { showNotice("Please select a user account to link.", "warning"); return; }
     setLinking(true);
     try {
       const updated = await linkUserToTeacher(linkModal, Number(linkUserId));
       setTeachers((prev) => prev.map((t) => (t.id === linkModal ? updated : t)));
       setLinkModal(null);
       setLinkUserId("");
-    } catch {
-      alert("Failed to link user. The account may already be linked to another teacher.");
+    } catch (err) {
+      showNotice(
+        err.message?.toLowerCase().includes("already")
+          ? "That account is already linked to another teacher."
+          : getFriendlyError(err)
+      );
     } finally {
       setLinking(false);
     }
   };
 
   const handleAddAssignment = async (teacherId) => {
-    if (!newSubjectId || !newClassId) { alert("Select both a subject and a class."); return; }
+    if (!newSubjectId || !newClassId) {
+      showNotice("Please select both a subject and a class.", "warning");
+      return;
+    }
     setAddingAssign(true);
     try {
       const created = await addTeacherAssignment(teacherId, {
@@ -151,10 +162,10 @@ const TeacherManager = () => {
       setNewClassId("");
       setAssignPanel(null);
     } catch (err) {
-      alert(
-        err.message?.includes("already exists")
+      showNotice(
+        err.message?.toLowerCase().includes("already")
           ? "This teacher is already assigned to that subject and class."
-          : "Failed to add assignment."
+          : getFriendlyError(err)
       );
     } finally {
       setAddingAssign(false);
@@ -169,8 +180,8 @@ const TeacherManager = () => {
         ...prev,
         [teacherId]: prev[teacherId].filter((a) => a.id !== assignmentId),
       }));
-    } catch {
-      alert("Failed to remove assignment.");
+    } catch (err) {
+      showNotice(getFriendlyError(err));
     }
   };
 
@@ -194,14 +205,25 @@ const TeacherManager = () => {
 
   if (loadError) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-red-500">Error: {loadError}</p>
+      <div className="max-w-lg mx-auto mt-16 px-4">
+        <UserMessage
+          message={loadError}
+          title="Couldn't load teachers"
+          onRetry={() => window.location.reload()}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {notice && (
+        <Toast
+          message={notice.message}
+          type={notice.type}
+          onClose={() => setNotice(null)}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">

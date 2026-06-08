@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { School, KeyRound, Plus, ArrowRight, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { API_BASE } from '../config';
+import { UserMessage } from '../components/UserMessage';
+import { getFriendlyError, readErrorMessage } from '../utils/errorMessages';
 
 const BASE = API_BASE;
 
@@ -57,7 +59,7 @@ export default function SelectSchool() {
         body: JSON.stringify({ schoolCode: schoolCode.trim().toUpperCase() }),
       });
       if (!res.ok) {
-        const msg = await res.text();
+        const msg = await readErrorMessage(res);
         throw new Error(msg || 'School not found. Check the code and try again.');
       }
       const data = await res.json();
@@ -65,7 +67,7 @@ export default function SelectSchool() {
       localStorage.removeItem('requiresSchool');
       setTimeout(() => navigate('/'), 1200);
     } catch (err) {
-      setError(err.message);
+      setError(getFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -82,7 +84,7 @@ export default function SelectSchool() {
         body: JSON.stringify(form),
       });
       if (!res.ok) {
-        const msg = await res.text();
+        const msg = await readErrorMessage(res);
         throw new Error(msg || 'Failed to create school.');
       }
       const data = await res.json();
@@ -90,7 +92,7 @@ export default function SelectSchool() {
       localStorage.removeItem('requiresSchool');
       setTimeout(() => navigate('/'), 1500);
     } catch (err) {
-      setError(err.message);
+      setError(getFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -136,14 +138,10 @@ export default function SelectSchool() {
 
           {/* Feedback */}
           {error && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-5 text-sm">
-              <AlertCircle size={16} className="shrink-0" /> {error}
-            </div>
+            <UserMessage message={error} onDismiss={() => setError('')} className="mb-5" />
           )}
           {success && (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 mb-5 text-sm">
-              <CheckCircle size={16} className="shrink-0" /> {success}
-            </div>
+            <UserMessage type="success" message={success} className="mb-5" />
           )}
 
           {/* ── JOIN MODE ── */}

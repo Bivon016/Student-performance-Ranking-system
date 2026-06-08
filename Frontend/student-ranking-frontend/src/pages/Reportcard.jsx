@@ -2,6 +2,7 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useReportCard } from "../hooks/Usereportcard";
 import { useSchool } from "../hooks/useSchool";
+import { resolveLogoUrl } from "../utils/logoUrl";
 import { ArrowLeft, Printer, Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 
 const CBC_SCALE = [
@@ -99,9 +100,10 @@ function ErrorScreen({ message, onBack }) {
 }
 
 function SchoolLogo({ school }) {
-  if (school?.schoolLogo) {
+  const logoSrc = resolveLogoUrl(school?.schoolLogo);
+  if (logoSrc) {
     return (
-      <img src={school.schoolLogo} alt="logo"
+      <img src={logoSrc} alt="logo"
         style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", display: "block", margin: "0 auto 5px", border: `2px solid ${GOLD}` }}
         onError={e => { e.target.style.display = "none"; }} />
     );

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { addStudentsBatch, getAllClasses } from "../services/api";
-import { Plus, Trash2, CheckCircle, X, UserPlus, AlertCircle } from "lucide-react";
+import { Plus, Trash2, CheckCircle, X, UserPlus } from "lucide-react";
+import { UserMessage } from "../components/UserMessage";
+import { getFriendlyError } from "../utils/errorMessages";
 
 const GENDERS = ["Male", "Female"];
 
@@ -86,7 +88,7 @@ const BatchAddStudents = ({ onClose, onSuccess }) => {
       setSubmitted(true);
       onSuccess?.();
     } catch (err) {
-      setApiError(err.message || "Failed to add students.");
+      setApiError(getFriendlyError(err));
     } finally {
       setSubmitting(false);
     }
@@ -262,9 +264,7 @@ const BatchAddStudents = ({ onClose, onSuccess }) => {
         <div className="px-6 py-4 border-t shrink-0 space-y-3">
 
           {apiError && (
-            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3">
-              <AlertCircle size={15} />{apiError}
-            </div>
+            <UserMessage message={apiError} onDismiss={() => setApiError("")} />
           )}
 
           <div className="flex items-center justify-between">

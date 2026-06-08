@@ -12,6 +12,8 @@ import {
   getAllSubjects,
   getAllClasses,
 } from '../services/api';
+import { UserMessage } from '../components/UserMessage';
+import { getFriendlyError } from '../utils/errorMessages';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const avg  = (arr) => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
@@ -212,7 +214,7 @@ const Dashboard = () => {
       });
     } catch (err) {
       console.error(err);
-      setError('Could not load dashboard data. Check your backend connection.');
+      setError(getFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -257,14 +259,7 @@ const Dashboard = () => {
 
       {/* ── Error ── */}
       {error && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700
-          rounded-xl px-4 py-3 text-sm">
-          <AlertCircle size={16} className="shrink-0" />
-          {error}
-          <button onClick={fetchAll} className="ml-auto font-medium hover:underline flex items-center gap-1">
-            <RefreshCw size={13} /> Retry
-          </button>
-        </div>
+        <UserMessage message={error} onRetry={fetchAll} onDismiss={() => setError(null)} />
       )}
 
       {/* ── Row 1: Hero gradient cards ── */}

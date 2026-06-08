@@ -19,6 +19,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.HashMap;
 import java.util.List;
@@ -35,12 +36,16 @@ public class AuthController {
     private final TeacherAssignmentRepository assignmentRepo;
     private final SchoolContextService  schoolContextService;
     private final SchoolRepo schoolRepo;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtService jwtService,
                           UsersRepo usersRepo,
                           TeachersRepo teachersRepo,
-                          TeacherAssignmentRepository assignmentRepo,SchoolContextService schoolContextService,SchoolRepo schoolRepo) {
+                          TeacherAssignmentRepository assignmentRepo,
+                          SchoolContextService schoolContextService,
+                          SchoolRepo schoolRepo,
+                          PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.usersRepo = usersRepo;
@@ -48,6 +53,7 @@ public class AuthController {
         this.assignmentRepo = assignmentRepo;
         this.schoolContextService = schoolContextService;
         this.schoolRepo = schoolRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
@@ -70,6 +76,7 @@ public class AuthController {
             response.put("role",           user.getRole());
             response.put("assignments",    List.of());
             response.put("username",       user.getUsername());
+            response.put("name",           user.getUsername());
             response.put("requiresSchool", true);          // ✅ frontend reads this
             return ResponseEntity.ok(response);
         }
@@ -97,8 +104,66 @@ public class AuthController {
         response.put("role",        user.getRole());
         response.put("assignments", assignments);
         response.put("username",    user.getUsername());
+        response.put("name",        user.getUsername());
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> getCurrentUser(Authentication authentication) {
+        User user = usersRepo.findByUsername(authentication.getName());
+        Map<String, Object> body = new HashMap<>();
+        body.put("id",       user.getId());
+        body.put("username", user.getUsername());
+        body.put("name",     user.getUsername());
+        body.put("role",     user.getRole());
+        if (user.getSchool() != null) {
+            body.put("schoolName", user.getSchool().getSchoolName());
+        }
+        return ResponseEntity.ok(body);
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> updateProfile(
+            @RequestBody Map<String, String> body,
+            Authentication authentication) {
+        User user = usersRepo.findByUsername(authentication.getName());
+        String username = body.get("username");
+        if (username != null && !username.isBlank()) {
+            if (!username.equals(user.getUsername()) && usersRepo.existsByUsername(username)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Username already taken"));
+            }
+            user.setUsername(username.trim());
+            usersRepo.save(user);
+        }
+        Map<String, Object> response = new HashMap<>();
+        response.put("id",       user.getId());
+        response.put("username", user.getUsername());
+        response.put("name",     user.getUsername());
+        response.put("role",     user.getRole());
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/me/password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @RequestBody Map<String, String> body,
+            Authentication authentication) {
+        User user = usersRepo.findByUsername(authentication.getName());
+        String current = body.get("currentPassword");
+        String next    = body.get("newPassword");
+
+        if (current == null || next == null || next.length() < 6) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Password must be at least 6 characters"));
+        }
+        if (!passwordEncoder.matches(current, user.getPassword())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Current password is incorrect"));
+        }
+        user.setPassword(passwordEncoder.encode(next));
+        usersRepo.save(user);
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
     }
 
     @GetMapping("/users/all")

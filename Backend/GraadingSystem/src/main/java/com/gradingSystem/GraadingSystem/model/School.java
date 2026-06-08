@@ -19,7 +19,7 @@ public class School {
     @Column(unique = true)
     private String schoolCode;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(length = 500)
     private String schoolLogo;
 
     @Enumerated(EnumType.STRING)

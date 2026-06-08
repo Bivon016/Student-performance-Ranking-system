@@ -9,7 +9,6 @@ import Classes        from './pages/Classes';
 import Subjects       from './pages/Subjects';
 import Settings       from './pages/Settings';
 import Profile        from './pages/Profile';
-import PendingReviews from './pages/PendingReviews';
 import AdminPanel from './pages/AdminPanel'
 import TeacherManager from './pages/TeacherManager';
 import ReportCard     from './pages/ReportCard';
@@ -48,14 +47,11 @@ function App() {
 
           <Route path="exams" element={<Exams />} />
           <Route path="rankings" element={<Rankings />} />
-          <Route path="rankings/generate" element={<Rankings />} />
-          <Route path="rankings/export" element={<Rankings />} />
 
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<Profile />} />
 
           <Route path="report-card" element={<ReportCard />} />
-          <Route path="pending-reviews" element={<PendingReviews />} />
           <Route path="admin" element={<AdminPanel />} />
 
 

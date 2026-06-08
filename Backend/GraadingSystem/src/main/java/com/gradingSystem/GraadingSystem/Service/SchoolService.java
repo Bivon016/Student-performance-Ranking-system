@@ -6,6 +6,7 @@ import com.gradingSystem.GraadingSystem.model.School;
 import com.gradingSystem.GraadingSystem.model.User;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -15,11 +16,16 @@ public class SchoolService {
     private final SchoolRepo schoolRepo;
     private SchoolContextService schoolContextService;
     private final UsersRepo usersRepo;
+    private final FileStorageService fileStorageService;
 
-    public SchoolService(SchoolRepo schoolRepo,SchoolContextService schoolContextService,UsersRepo usersRepo) {
+    public SchoolService(SchoolRepo schoolRepo,
+                         SchoolContextService schoolContextService,
+                         UsersRepo usersRepo,
+                         FileStorageService fileStorageService) {
         this.schoolRepo = schoolRepo;
         this.schoolContextService = schoolContextService;
         this.usersRepo = usersRepo;
+        this.fileStorageService = fileStorageService;
     }
 
     public School registerSchool(School school) {
@@ -72,9 +78,49 @@ public class SchoolService {
         existing.setPhoneNumber(updated.getPhoneNumber());
         existing.setEmail(updated.getEmail());
         existing.setMotto(updated.getMotto());
-        existing.setSchoolLogo(updated.getSchoolLogo());
+        applySchoolLogo(existing, updated.getSchoolLogo());
         // active is NOT updated — preserves existing value
         return schoolRepo.save(existing);
+    }
+
+    public School uploadSchoolLogo(Long schoolId, MultipartFile file) {
+        School school = getSchoolById(schoolId);
+        String previous = school.getSchoolLogo();
+        String storedPath = fileStorageService.storeSchoolLogo(schoolId, file);
+        school.setSchoolLogo(storedPath);
+        School saved = schoolRepo.save(school);
+        if (fileStorageService.isStoredPath(previous) && !previous.equals(storedPath)) {
+            fileStorageService.deleteStoredFile(previous);
+        }
+        return saved;
+    }
+
+    public School removeSchoolLogo(Long schoolId) {
+        School school = getSchoolById(schoolId);
+        String previous = school.getSchoolLogo();
+        school.setSchoolLogo(null);
+        School saved = schoolRepo.save(school);
+        fileStorageService.deleteStoredFile(previous);
+        return saved;
+    }
+
+    private void applySchoolLogo(School existing, String logoValue) {
+        if (logoValue == null || logoValue.isBlank()) {
+            fileStorageService.deleteStoredFile(existing.getSchoolLogo());
+            existing.setSchoolLogo(null);
+            return;
+        }
+        if (logoValue.startsWith("data:")) {
+            throw new IllegalArgumentException("Logo must be uploaded as a file, not embedded base64");
+        }
+        if (!logoValue.startsWith("/uploads/") && !logoValue.startsWith("http://") && !logoValue.startsWith("https://")) {
+            throw new IllegalArgumentException("Invalid logo URL");
+        }
+        String previous = existing.getSchoolLogo();
+        existing.setSchoolLogo(logoValue.trim());
+        if (fileStorageService.isStoredPath(previous) && !previous.equals(existing.getSchoolLogo())) {
+            fileStorageService.deleteStoredFile(previous);
+        }
     }
 
     // =========================

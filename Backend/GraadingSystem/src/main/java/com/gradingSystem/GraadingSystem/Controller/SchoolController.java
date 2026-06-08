@@ -8,8 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/school")
@@ -54,6 +56,25 @@ public class SchoolController {
             @PathVariable Long id,
             @RequestBody School school) {
         return ResponseEntity.ok(schoolService.updateSchool(id, school));
+    }
+
+    @PostMapping("/{id}/logo")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+    public ResponseEntity<Map<String, Object>> uploadLogo(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        School school = schoolService.uploadSchoolLogo(id, file);
+        return ResponseEntity.ok(Map.of(
+                "schoolLogo", school.getSchoolLogo(),
+                "logoUrl", school.getSchoolLogo(),
+                "school", school
+        ));
+    }
+
+    @DeleteMapping("/{id}/logo")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+    public ResponseEntity<School> deleteLogo(@PathVariable Long id) {
+        return ResponseEntity.ok(schoolService.removeSchoolLogo(id));
     }
 
     @DeleteMapping("/delete/{id}")

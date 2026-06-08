@@ -5,6 +5,7 @@ import {
   Search, GraduationCap, Calendar,
   CheckCircle, Zap, BookOpen, Filter,
 } from "lucide-react";
+import { UserMessage } from "../components/UserMessage";
 
 const STREAM_SUGGESTIONS = ["North", "South", "East", "West", "A", "B", "C", "D", "Red", "Blue", "Green"];
 
@@ -258,11 +259,7 @@ const Classes = () => {
 
       {/* ── Error ── */}
       {error && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700
-          rounded-xl px-4 py-3 text-sm">
-          <X size={15} className="shrink-0" /> {error}
-          <button className="ml-auto" onClick={() => setError(null)}><X size={14} /></button>
-        </div>
+        <UserMessage message={error} onDismiss={() => setError(null)} />
       )}
 
       {/* ══ BULK CREATE PANEL ══ */}
