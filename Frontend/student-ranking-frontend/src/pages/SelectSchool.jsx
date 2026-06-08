@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { School, KeyRound, Plus, ArrowRight, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { API_BASE } from '../config';
 
-const BASE = "http://localhost:8080";
+const BASE = API_BASE;
 
 const apiFetch = (url, options = {}) => {
   const token = localStorage.getItem('token');

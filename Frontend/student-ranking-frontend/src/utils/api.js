@@ -1,4 +1,6 @@
-const AUTH_BASE = "http://localhost:8080/auth";
+import { API_BASE } from "../config";
+
+const AUTH_BASE = `${API_BASE}/auth`;
 
 // ✅ Define and export apiFetch so services/api.js can import it
 export async function apiFetch(url, options = {}) {

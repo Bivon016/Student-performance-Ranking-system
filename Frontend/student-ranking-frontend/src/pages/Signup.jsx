@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, School, KeyRound, ChevronDown, ChevronUp } from 'lucide-react';
+import { API_BASE } from '../config';
 
 const Signup = () => {
   const [username,      setUsername]      = useState('');
@@ -19,7 +20,7 @@ const Signup = () => {
     setSuccess('');
 
     try {
-      const response = await fetch('http://localhost:8080/public/signup', {
+      const response = await fetch(`${API_BASE}/public/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

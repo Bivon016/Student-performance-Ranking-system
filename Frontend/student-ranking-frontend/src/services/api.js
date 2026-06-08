@@ -1,7 +1,8 @@
 import { apiFetch } from "../utils/api";
+import { API_BASE } from "../config";
 
 // ─── Base URLs ────────────────────────────────────────────────────────────────
-const BASE             = "http://localhost:8080";
+const BASE             = API_BASE;
 const STUDENTS_BASE    = `${BASE}/students`;
 const SUBJECTS_BASE    = `${BASE}/subjects`;
 const MARKS_BASE       = `${BASE}/marks`;

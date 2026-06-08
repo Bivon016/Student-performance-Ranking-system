@@ -5,8 +5,9 @@ import {
 } from 'lucide-react';
 import { useSchool } from '../hooks/useSchool';
 import { getRole } from '../services/api';
+import { API_BASE } from '../config';
 
-const BASE = "http://localhost:8080";
+const BASE = API_BASE;
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ message, type, onClose }) {

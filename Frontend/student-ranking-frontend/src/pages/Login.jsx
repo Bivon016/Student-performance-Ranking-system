@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, Mail, Eye, EyeOff, School } from 'lucide-react';
 import { login } from '../services/api';
+import { APP_URL } from '../config';
 
 const Login = () => {
   const [username,     setUsername]     = useState('');
@@ -19,9 +20,9 @@ const Login = () => {
       const data = await login(username, password);
 
      if (data.requiresSchool) {
-  window.location.replace('http://localhost:5173/select-school');
+  window.location.replace(`${APP_URL}/select-school`);
 } else {
-  window.location.replace('http://localhost:5173/');
+  window.location.replace(`${APP_URL}/`);
 }
     } catch (err) {
       console.error(err);

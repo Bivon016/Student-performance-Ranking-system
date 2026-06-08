@@ -3,6 +3,7 @@ import {
   getAllSubjects, getAllExams, createExam, deleteExam, getAllClasses,
   getCurrentPeriod, getAllPeriods,
 } from "../services/api";
+import { API_BASE } from "../config";
 import * as XLSX from "xlsx";
 import {
   Plus, Trash2, Edit, X, Save,
@@ -380,7 +381,7 @@ const Exams = () => {
     setDrawerExam(exam); setDrawerLoading(true);
     try {
       const data = await fetch(
-        `http://localhost:8080/marks/exam/${exam.examId}/comparison`,
+        `${API_BASE}/marks/exam/${exam.examId}/comparison`,
         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
       ).then((r) => r.json());
       setComparisonData(data);
