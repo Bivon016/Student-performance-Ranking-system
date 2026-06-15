@@ -13,7 +13,6 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    // Plain string secret — no imports needed
     private static final String SECRET = "grading-system-super-secret-key-2024-do-not-change";
 
     private final Key key = Keys.hmacShaKeyFor(

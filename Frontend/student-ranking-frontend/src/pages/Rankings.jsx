@@ -77,11 +77,14 @@ const getGradeColor = (val, isDark) => {
 
 const calcGradePoint = (marks) => {
   if (marks == null) return null;
-  if (marks >= 80) return 5;
-  if (marks >= 70) return 4;
-  if (marks >= 60) return 3;
-  if (marks >= 40) return 2;
-  return 1;
+  if (marks >= 90) return 4;
+  if (marks >= 75) return 3.5;
+  if (marks >= 58) return 3;
+  if (marks >= 41) return 2.5;
+  if(marks >= 31) return 2;
+  if(marks >=21) return 1,5;
+  if(marks >=11) return 1;
+  return 0;
 };
 
 const GP_COLORS = {

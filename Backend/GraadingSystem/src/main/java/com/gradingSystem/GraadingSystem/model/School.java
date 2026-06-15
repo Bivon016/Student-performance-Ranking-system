@@ -102,6 +102,7 @@ public class School {
     }
 
     public String getSchoolLogo() {
+
         return schoolLogo;
     }
 
