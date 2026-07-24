@@ -45,21 +45,21 @@ public class GradeService {
             double points;
 
             if (score >= 90) {
+                points = 8.0;
+            } else if (score >= 80) {
+                points = 7.0;
+            } else if (score >= 70) {
+                points = 6.0;
+            } else if (score >= 60) {
+                points = 5.0;
+            } else if (score >= 50) {
                 points = 4.0;
-            } else if (score >= 75) {
-                points = 3.5;
-            } else if (score >= 58) {
+            } else if (score >= 40) {
                 points = 3.0;
-            } else if (score >= 41) {
-                points = 2.5;
-            } else if (score >= 31) {
+            } else if (score >= 30) {
                 points = 2.0;
-            } else if (score >= 21) {
-                points = 1.5;
-            } else if (score >= 11) {
+            } else if (score >= 0) {
                 points = 1.0;
-            } else if (score >= 1) {
-                points = 0.5;
             } else {
                 points = 0.0;
             }

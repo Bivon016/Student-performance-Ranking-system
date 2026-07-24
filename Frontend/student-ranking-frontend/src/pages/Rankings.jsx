@@ -77,29 +77,34 @@ const getGradeColor = (val, isDark) => {
 
 const calcGradePoint = (marks) => {
   if (marks == null) return null;
-  if (marks >= 90) return 4;
-  if (marks >= 75) return 3.5;
-  if (marks >= 58) return 3;
-  if (marks >= 41) return 2.5;
-  if(marks >= 31) return 2;
-  if(marks >=21) return 1,5;
-  if(marks >=11) return 1;
-  return 0;
+  if (marks >= 90) return 8;
+  if (marks >= 80) return 7;
+  if (marks >= 70) return 6;
+  if (marks >= 60) return 5;
+  if(marks >= 50) return 4;
+  if(marks >=40) return 3;
+  if(marks >=30) return 2;
+  return 1;
 };
-
 const GP_COLORS = {
   light: {
-    5: "bg-green-100 text-green-700",
-    4: "bg-blue-100 text-blue-700",
-    3: "bg-yellow-100 text-yellow-700",
+    8: "bg-green-100 text-green-700",
+    7: "bg-green-100 text-green-700",
+    6: "bg-blue-100 text-blue-700",
+    5: "bg-blue-100 text-blue-700",
+    4: "bg-yellow-100 text-yellow-700",
+    3: "bg-orange-100 text-orange-700",
     2: "bg-orange-100 text-orange-700",
     1: "bg-red-100 text-red-700",
     0: "bg-gray-100 text-gray-400",
   },
   dark: {
-    5: "bg-green-900/50 text-green-300",
-    4: "bg-blue-900/50 text-blue-300",
-    3: "bg-yellow-900/50 text-yellow-300",
+    8: "bg-green-900/50 text-green-300",
+    7: "bg-green-900/50 text-green-300",
+    6: "bg-blue-900/50 text-blue-300",
+    5: "bg-blue-900/50 text-blue-300",
+    4: "bg-yellow-900/50 text-yellow-300",
+    3: "bg-orange-900/50 text-orange-300",
     2: "bg-orange-900/50 text-orange-300",
     1: "bg-red-900/50 text-red-300",
     0: "bg-gray-700 text-gray-400",
@@ -319,8 +324,13 @@ const Results = () => {
     XLSX.writeFile(wb, `Results_${examLabel.replace(/\s+/g, "_")}.xlsx`);
   };
 
-  const handleBulkDownload = async () => {
-    if (!results || studentList.length === 0) return;
+const handleBulkDownload = async () => {
+  if (!results || studentList.length === 0) return;
+  abortRef.current = false;
+  setBulkProgress({ total: studentList.length, current: 0, currentName: "", done: false });
+
+  let iframe;
+  try {
     const [html2pdfMod, JSZipMod, { saveAs }] = await Promise.all([
       import("html2pdf.js"),
       import("jszip"),
@@ -331,20 +341,22 @@ const Results = () => {
     const zip      = new JSZip();
     const examLabel   = EXAM_TYPES.find((e) => e.value === examType)?.label ?? examType;
     const classIdsStr = selectedClassIds.join(",");
-    abortRef.current = false;
-    setBulkProgress({ total: studentList.length, current: 0, currentName: "", done: false });
-    const iframe = document.createElement("iframe");
+
+    iframe = document.createElement("iframe");
     iframe.style.cssText =
       "position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;visibility:hidden";
     document.body.appendChild(iframe);
-    try {
-      for (let i = 0; i < studentList.length; i++) {
-        if (abortRef.current) break;
-        const student = studentList[i];
-        setBulkProgress({ total: studentList.length, current: i + 1, currentName: student.studentName, done: false });
-        const params = new URLSearchParams({ studentId: student.studentId, classIds: classIdsStr, examType });
-        const resolvedPeriodId = periodId || results?.periodId;
-        if (resolvedPeriodId) params.append("periodId", resolvedPeriodId);
+
+    let generatedCount = 0;
+    for (let i = 0; i < studentList.length; i++) {
+      if (abortRef.current) break;
+      const student = studentList[i];
+      setBulkProgress({ total: studentList.length, current: i + 1, currentName: student.studentName, done: false });
+      const params = new URLSearchParams({ studentId: student.studentId, classIds: classIdsStr, examType });
+      const resolvedPeriodId = periodId || results?.periodId;
+      if (resolvedPeriodId) params.append("periodId", resolvedPeriodId);
+
+      try {
         await new Promise((resolve) => { iframe.onload = resolve; iframe.src = `/report-card?${params.toString()}`; });
         await new Promise((r) => setTimeout(r, 2000));
         const rcRoot = iframe.contentDocument?.getElementById("rc-root");
@@ -355,22 +367,34 @@ const Results = () => {
           .set({ margin: 0, filename, image: { type: "jpeg", quality: 0.97 }, html2canvas: { scale: 2, useCORS: true, width: 794, height: 1123, logging: false }, jsPDF: { unit: "px", format: [794, 1123], orientation: "portrait" } })
           .from(rcRoot).outputPdf("blob");
         zip.file(filename, pdfBlob);
+        generatedCount++;
+      } catch (studentErr) {
+        console.error(`Failed to generate PDF for ${student.studentName} (ID ${student.studentId}):`, studentErr);
+        // continue with remaining students instead of aborting the whole batch
       }
-    } finally {
-      document.body.removeChild(iframe);
     }
+
+    if (abortRef.current) {
+      setBulkProgress(null);
+      return;
+    }
+    if (generatedCount === 0) {
+      setGenError("Couldn't generate any report cards. Please try again.");
+      setBulkProgress(null);
+      return;
+    }
+
     const zipBlob = await zip.generateAsync({ type: "blob" });
     saveAs(zipBlob, `ReportCards_${examLabel.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.zip`);
     setBulkProgress((prev) => ({ ...prev, done: true }));
-  };
-
-  if (loading) return (
-    <div className="space-y-6">
-      <Sk className="h-8 w-48" />
-      <div className="grid grid-cols-3 gap-4"><Sk className="h-32" /><Sk className="h-32" /><Sk className="h-32" /></div>
-      <Sk className="h-64" />
-    </div>
-  );
+  } catch (err) {
+    console.error("Bulk download failed:", err);
+    setGenError(getFriendlyError(err));
+    setBulkProgress(null);
+  } finally {
+    if (iframe) document.body.removeChild(iframe);
+  }
+};
 
   return (
     <div className="space-y-7">
