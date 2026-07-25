@@ -47,8 +47,7 @@ public class EnrollmentController {
         enrollmentService.removeSubjectFromStudent(studentId, subjectId);
         return ResponseEntity.noContent().build();
     }
-
-    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL') or hasAuthority('ROLE_DEPUTY') or hasAuthority('ROLE_CLASS_TEACHER')")
     @PostMapping("/batch")
     public ResponseEntity<BatchEnrollmentResultDTO> batchEnroll(@RequestBody BatchEnrollSubjectsDTO request) {
         return ResponseEntity.ok(enrollmentService.batchEnrollSubjects(request));

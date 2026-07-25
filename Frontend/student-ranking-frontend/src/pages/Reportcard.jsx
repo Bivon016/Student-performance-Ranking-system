@@ -7,13 +7,13 @@ import { ArrowLeft, Printer, Loader2, AlertCircle, AlertTriangle } from "lucide-
 
 const CBC_SCALE = [
   { level: "EE1", range: "90–100", color: "#166534", bg: "#dcfce7" },
-  { level: "EE2", range: "75–89",  color: "#1e40af", bg: "#dbeafe" },
-  { level: "ME1", range: "58–74",  color: "#065f46", bg: "#d1fae5" },
-  { level: "ME2", range: "41–57",  color: "#854d0e", bg: "#fef9c3" },
-  { level: "AE1", range: "31–40",  color: "#9a3412", bg: "#ffedd5" },
-  { level: "AE2", range: "21–30",  color: "#7c2d12", bg: "#fed7aa" },
-  { level: "BE1", range: "11–20",  color: "#991b1b", bg: "#fee2e2" },
-  { level: "BE2", range: "0–10",   color: "#7f1d1d", bg: "#fecaca" },
+  { level: "EE2", range: "80–89",  color: "#1e40af", bg: "#dbeafe" },
+  { level: "ME1", range: "70–79",  color: "#065f46", bg: "#d1fae5" },
+  { level: "ME2", range: "60–69",  color: "#854d0e", bg: "#fef9c3" },
+  { level: "AE1", range: "50–59",  color: "#9a3412", bg: "#ffedd5" },
+  { level: "AE2", range: "40–49",  color: "#7c2d12", bg: "#fed7aa" },
+  { level: "BE1", range: "30–39",  color: "#991b1b", bg: "#fee2e2" },
+  { level: "BE2", range: "0–29",   color: "#7f1d1d", bg: "#fecaca" },
 ];
 
 const CBC_MAP = {

@@ -21,21 +21,21 @@ import { getResults } from "../services/api";
 // ─── Grading helpers ─────────────────────────────────────────────────────────
 
 /** Numeric score → Kenyan KNEC letter grade */
-export function scoreToGrade(score) {
-  if (score == null) return "—";
-  if (score >= 75) return "A";
-  if (score >= 70) return "A-";
-  if (score >= 65) return "B+";
-  if (score >= 60) return "B";
-  if (score >= 55) return "B-";
-  if (score >= 50) return "C+";
-  if (score >= 45) return "C";
-  if (score >= 40) return "C-";
-  if (score >= 35) return "D+";
-  if (score >= 30) return "D";
-  if (score >= 25) return "D-";
-  return "E";
-}
+// export function scoreToGrade(score) {
+//   if (score == null) return "—";
+//   if (score >= 75) return "A";
+//   if (score >= 70) return "A-";
+//   if (score >= 65) return "B+";
+//   if (score >= 60) return "B";
+//   if (score >= 55) return "B-";
+//   if (score >= 50) return "C+";
+//   if (score >= 45) return "C";
+//   if (score >= 40) return "C-";
+//   if (score >= 35) return "D+";
+//   if (score >= 30) return "D";
+//   if (score >= 25) return "D-";
+//   return "E";
+// }
 
 /** Mirror of backend calculateGradePoint */
 export function calcGradePoint(marks) {
@@ -63,16 +63,17 @@ export function scoreToCBC(score) {
 }
 
 /** Grade-point mean → letter grade */
-function pointsToMeanGrade(totalPoints, subjectCount) {
-  if (!subjectCount) return "—";
-  const avg = totalPoints / subjectCount;
-  if (avg >= 8.0) return "A";
-  if (avg >= 7.0) return "A-";
-  if (avg >= 6.0) return "B+";
-  if (avg >= 5.0) return "B";
-  if (avg >= 4.0) return "B-";
-  if (avg >= 3.0) return "C+";
-  return "C";
+// function pointsToMeanGrade(totalPoints, subjectCount) {
+//   if (!subjectCount) return "—";
+//   const avg = totalPoints / subjectCount;
+//   if (avg >= 8.0) return "A";
+//   if (avg >= 7.0) return "A-";
+//   if (avg >= 6.0) return "B+";
+//   if (avg >= 5.0) return "B";
+//   if (avg >= 4.0) return "B-";
+//   if (avg >= 3.0) return "C+";
+
+//   return "C";
 }
 
 function ordinal(n) {

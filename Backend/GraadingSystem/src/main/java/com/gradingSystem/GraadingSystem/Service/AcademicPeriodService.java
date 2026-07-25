@@ -6,7 +6,9 @@ import com.gradingSystem.GraadingSystem.model.PeriodStatus;
 import com.gradingSystem.GraadingSystem.model.School;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class AcademicPeriodService {
@@ -92,6 +94,23 @@ public class AcademicPeriodService {
     public List<AcademicPeriod> getAllPeriods() {
         School school = schoolContextService.getCurrentSchool();
         return academicPeriodRepo.findBySchool(school);
+    }
+
+    /**
+     * Finds the chronologically previous academic period for the same school
+     * (e.g. Term 1 2026 → Term 3 2025, or Term 2 2026 → Term 1 2026),
+     * based on whatever periods actually exist — not an assumed term count.
+     * Returns empty if there's no earlier period on record.
+     */
+    public Optional<AcademicPeriod> findPreviousPeriod(AcademicPeriod period) {
+        School school = schoolContextService.getCurrentSchool();
+        List<AcademicPeriod> all = academicPeriodRepo.findBySchool(school);
+        return all.stream()
+                .filter(p -> !p.getId().equals(period.getId()))
+                .filter(p -> p.getYear() < period.getYear()
+                        || (p.getYear() == period.getYear() && p.getTerm() < period.getTerm()))
+                .max(Comparator.comparing(AcademicPeriod::getYear)
+                        .thenComparing(AcademicPeriod::getTerm));
     }
 
     private void closeCurrentPeriod(School school) {

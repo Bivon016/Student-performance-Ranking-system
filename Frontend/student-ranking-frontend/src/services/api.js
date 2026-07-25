@@ -280,5 +280,15 @@ export async function getResults(classIds, examType, periodId) {
   if (periodId) params.append("periodId", periodId);
   return get(`${RANKING_BASE}/results?${params.toString()}`);
 }
+
+// Ranks each selected class's subjects by mean score (rank 1 = highest mean)
+// and returns the standard deviation of scores for each subject in that class.
+export async function getSubjectRanking(classIds, examType, periodId) {
+  const params = new URLSearchParams();
+  classIds.forEach((id) => params.append("classIds", id));
+  params.append("examType", examType);
+  if (periodId) params.append("periodId", periodId);
+  return get(`${RANKING_BASE}/subject-ranking?${params.toString()}`);
+}
 export const getStudentsByClass = (classId) => 
   get(`${STUDENTS_BASE}/class/${classId}`);

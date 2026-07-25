@@ -161,7 +161,7 @@ const Dashboard = () => {
         subjectPerf.sort((a, b) => b.avg - a.avg);
       }
 
-      // Top students list
+      // Top students — one top performer PER CLASS
       const topStudents = [];
       if (Array.isArray(students) && marks.length) {
         const byStudent = {};
@@ -173,15 +173,29 @@ const Dashboard = () => {
             byStudent[sid].push(val);
           }
         });
+
+        const classNameById = Array.isArray(classes)
+          ? classes.reduce((acc, c) => { acc[c.classId] = c.className; return acc; }, {})
+          : {};
+
+        // Keep only the highest-average student found so far for each classId
+        const bestByClass = {};
         students.forEach((s) => {
           const vals = byStudent[s.id];
-          if (vals?.length) topStudents.push({
-            id:    s.id,
-            name:  s.studentName || s.name || `Student ${s.id}`,
-            avg:   Math.round(avg(vals)),
-            class: s.classEntity?.className || s.className || '',
-          });
+          if (!vals?.length) return;
+          const studentAvg = avg(vals);
+          const classKey = s.classId ?? 'unassigned';
+          if (!bestByClass[classKey] || studentAvg > bestByClass[classKey].avg) {
+            bestByClass[classKey] = {
+              id:    s.id,
+              name:  s.studentName || s.name || `Student ${s.id}`,
+              avg:   Math.round(studentAvg),
+              class: classNameById[s.classId] || s.className || '',
+            };
+          }
         });
+
+        topStudents.push(...Object.values(bestByClass));
         topStudents.sort((a, b) => b.avg - a.avg);
       }
 
@@ -342,12 +356,12 @@ const Dashboard = () => {
         {/* Top Students */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800">Top Students</h2>
+            <h2 className="font-semibold text-gray-800">Class Toppers</h2>
             <Star size={15} className="text-amber-400" />
           </div>
           {data?.topStudents?.length ? (
             <ul className="space-y-3">
-              {data.topStudents.slice(0, 6).map((stu, i) => {
+              {data.topStudents.map((stu, i) => {
                 const g = gradeInfo(stu.avg);
                 const medals = ['🥇','🥈','🥉'];
                 return (

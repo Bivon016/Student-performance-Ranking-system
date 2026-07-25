@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllClasses, getResults, getAllPeriods, getCurrentPeriod } from "../services/api";
+import { getAllClasses, getResults, getSubjectRanking, getAllPeriods, getCurrentPeriod } from "../services/api";
 import * as XLSX from "xlsx";
 import {
   Trophy, AlertTriangle, CheckCircle, ChevronDown,
   ChevronUp, Search, BarChart, Users, BookOpen,
   Zap, RefreshCw, Download, FileText, Package, Filter,
+  Activity,
 } from "lucide-react";
 import { UserMessage } from "../components/UserMessage";
 import { getFriendlyError } from "../utils/errorMessages";
@@ -207,6 +208,10 @@ const Results = () => {
   const [search,           setSearch]           = useState("");
   const [showIssues,       setShowIssues]       = useState(false);
   const [bulkProgress,     setBulkProgress]     = useState(null);
+  const [subjectRanking,        setSubjectRanking]        = useState(null);
+  const [subjectRankingLoading, setSubjectRankingLoading] = useState(false);
+  const [subjectRankingError,   setSubjectRankingError]   = useState(null);
+  const [showSubjectRanking,    setShowSubjectRanking]    = useState(false);
   const abortRef = useRef(false);
 
   useEffect(() => {
@@ -264,6 +269,7 @@ const Results = () => {
   const handleGenerate = async () => {
     if (!canGenerate) return;
     setGenerating(true); setGenError(null); setResults(null);
+    setSubjectRanking(null); setSubjectRankingError(null); setShowSubjectRanking(false);
     try {
       const data = await getResults(selectedClassIds, examType, periodId || null);
       setResults(data);
@@ -278,6 +284,25 @@ const Results = () => {
   const handleReset = () => {
     setResults(null); setSelectedClassIds([]); setExamType(""); setPeriodId("");
     setGenError(null); setSearch(""); setShowIssues(false);
+    setSubjectRanking(null); setSubjectRankingError(null); setShowSubjectRanking(false);
+  };
+
+  const handleToggleSubjectRanking = async () => {
+    const nextShown = !showSubjectRanking;
+    setShowSubjectRanking(nextShown);
+    if (nextShown && !subjectRanking && !subjectRankingLoading) {
+      setSubjectRankingLoading(true);
+      setSubjectRankingError(null);
+      try {
+        const resolvedPeriodId = periodId || results?.periodId;
+        const data = await getSubjectRanking(selectedClassIds, examType, resolvedPeriodId || null);
+        setSubjectRanking(data);
+      } catch (err) {
+        setSubjectRankingError(getFriendlyError(err));
+      } finally {
+        setSubjectRankingLoading(false);
+      }
+    }
   };
 
   const handleViewReportCard = (student) => {
@@ -415,6 +440,14 @@ const handleBulkDownload = async () => {
         </div>
         {results && (
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleToggleSubjectRanking}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-sm
+                hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+              <Activity size={16} />
+              {showSubjectRanking ? "Hide Subject Ranking" : "Subject Ranking"}
+            </button>
             <button
               onClick={handleExportExcel}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
@@ -946,6 +979,119 @@ const handleBulkDownload = async () => {
               </div>
             )}
           </div>
+
+          {/* ── Subject Ranking by Class (mean + std deviation) ── */}
+          {showSubjectRanking && (
+            <div className={`rounded-2xl shadow-sm border p-6 space-y-6 ${cardCls}`}>
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600
+                  flex items-center justify-center text-white shadow-sm">
+                  <Activity size={16} />
+                </span>
+                <div>
+                  <p className={`text-sm font-bold uppercase tracking-wider ${isDark ? "text-gray-200" : "text-gray-700"}`}>
+                    Subject Ranking by Class
+                  </p>
+                  <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                    Subjects ranked by mean score within each class, with standard deviation
+                  </p>
+                </div>
+              </div>
+
+              {subjectRankingLoading && (
+                <div className="space-y-2">
+                  <Sk className="h-8 w-full" />
+                  <Sk className="h-8 w-full" />
+                  <Sk className="h-8 w-full" />
+                </div>
+              )}
+
+              {subjectRankingError && (
+                <UserMessage message={subjectRankingError} />
+              )}
+
+              {!subjectRankingLoading && subjectRanking && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {subjectRanking.classResults.map((cls) => (
+                    <div key={`subj-rank-${cls.classId}`}
+                      className={`rounded-xl border overflow-hidden ${isDark ? "border-gray-700" : "border-gray-100"}`}>
+                      <div className={`px-4 py-2.5 font-bold text-sm ${
+                        isDark ? "bg-gray-800/80 text-gray-200" : "bg-gray-50 text-gray-700"
+                      }`}>
+                        {cls.className}
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className={isDark ? "text-gray-400" : "text-gray-500"}>
+                            <th className="px-4 py-2 text-left font-semibold text-xs uppercase tracking-wider">Rank</th>
+                            <th className="px-4 py-2 text-left font-semibold text-xs uppercase tracking-wider">Subject</th>
+                            <th className="px-4 py-2 text-center font-semibold text-xs uppercase tracking-wider">Mean</th>
+                            <th className="px-4 py-2 text-center font-semibold text-xs uppercase tracking-wider">vs Last Term</th>
+                            <th className="px-4 py-2 text-center font-semibold text-xs uppercase tracking-wider">Students</th>
+                          </tr>
+                        </thead>
+                        <tbody className={`divide-y ${isDark ? "divide-gray-700" : "divide-gray-100"}`}>
+                          {cls.subjects.map((subj) => (
+                            <tr key={`${cls.classId}-${subj.subjectName}`} className={normalRowCls}>
+                              <td className="px-4 py-2.5">
+                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-xs font-bold border ${getRankColor(subj.rank, isDark)}`}>
+                                  {subj.rank}
+                                </span>
+                              </td>
+                              <td className={`px-4 py-2.5 font-semibold ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                                {subj.subjectName}
+                              </td>
+                              <td className={`px-4 py-2.5 text-center font-bold ${isDark ? "text-blue-300" : "text-blue-700"}`}>
+                                {subj.mean}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                {subj.deviation == null ? (
+                                  <span className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                                    No prior data
+                                  </span>
+                                ) : (
+                                  <span className={`text-sm font-semibold ${
+                                    subj.deviation > 0
+                                      ? (isDark ? "text-emerald-400" : "text-emerald-600")
+                                      : subj.deviation < 0
+                                        ? (isDark ? "text-red-400" : "text-red-600")
+                                        : (isDark ? "text-gray-400" : "text-gray-500")
+                                  }`}>
+                                    {subj.deviation > 0 ? "▲ +" : subj.deviation < 0 ? "▼ " : "— "}
+                                    {subj.deviation}
+                                    <span className={`ml-1 font-normal ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                                      (was {subj.previousMean})
+                                    </span>
+                                  </span>
+                                )}
+                              </td>
+                              <td className={`px-4 py-2.5 text-center ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                                {subj.studentCount}
+                              </td>
+                            </tr>
+                          ))}
+                          {cls.subjects.length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-4 text-center text-gray-400 text-sm">
+                                No subject data for this class
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                Rank 1 = highest mean score in that class this term. "vs Last Term" compares this
+                term's mean to the same class + subject's mean last term — ▲ green means it improved,
+                ▼ red means it dropped. "No prior data" means there's no earlier term on record, or
+                that subject wasn't graded last term.
+              </p>
+            </div>
+          )}
 
           <p className="text-xs text-gray-400 text-right">
             Use <strong>Export Excel</strong> for a spreadsheet · <strong>Download All PDFs</strong> for a ZIP of all report cards

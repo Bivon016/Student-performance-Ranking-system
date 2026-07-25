@@ -2,6 +2,7 @@ package com.gradingSystem.GraadingSystem.Controller;
 
 import com.gradingSystem.GraadingSystem.dto.ResultsResponseDTO;
 import com.gradingSystem.GraadingSystem.dto.StudentRankingDTO;
+import com.gradingSystem.GraadingSystem.dto.SubjectRankingResponseDTO;
 import com.gradingSystem.GraadingSystem.Service.RankingService;
 import com.gradingSystem.GraadingSystem.model.ExamType;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,28 @@ public class RankingController {
             ExamType type = ExamType.valueOf(examType.toUpperCase());
             ResultsResponseDTO results = rankingService.generateResults(classIds, type, periodId);
             return ResponseEntity.ok(results);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Invalid exam type: " + examType);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Ranks each selected class's subjects by mean score (highest mean = rank 1)
+     * and reports the standard deviation for each subject within that class.
+     * GET /ranking/subject-ranking?classIds=5,6&examType=MIDTERM
+     */
+    @GetMapping("/subject-ranking")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getSubjectRanking(
+            @RequestParam List<Long> classIds,
+            @RequestParam String examType,
+            @RequestParam(required = false) Long periodId) {
+        try {
+            ExamType type = ExamType.valueOf(examType.toUpperCase());
+            SubjectRankingResponseDTO result = rankingService.generateSubjectRanking(classIds, type, periodId);
+            return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid exam type: " + examType);
         } catch (RuntimeException e) {
