@@ -40,25 +40,25 @@ export function scoreToGrade(score) {
 /** Mirror of backend calculateGradePoint */
 export function calcGradePoint(marks) {
   if (marks == null) return null;
-  if (marks >= 90) return 4;
-  if (marks >= 75) return 3.5;
-  if (marks >= 58) return 3;
-  if (marks >= 41) return 2.5;
- if (marks >= 31) return 2;
- if (marks >= 21) return 1.5;
- if (marks >= 11) return 1;
-  return 0.5;
+  if (marks >= 90) return 8;
+  if (marks >= 80) return 7;
+  if (marks >= 70) return 6;
+  if (marks >= 60) return 5;
+ if (marks >= 50) return 4;
+ if (marks >= 40) return 3;
+ if (marks >= 30) return 2;
+  return 1;
 }
 
 export function scoreToCBC(score) {
   if (score == null) return "—";
   if (score >= 90) return "EE1";
-  if (score >= 75) return "EE2";
-  if (score >= 58) return "ME1";
-  if (score >= 41) return "ME2";
-  if (score >= 31) return "AE1";
-  if (score >= 21) return "AE2";
-  if (score >= 11) return "BE1";
+  if (score >= 80) return "EE2";
+  if (score >= 70) return "ME1";
+  if (score >= 60) return "ME2";
+  if (score >= 50) return "AE1";
+  if (score >= 40) return "AE2";
+  if (score >= 30) return "BE1";
   return "BE2";
 }
 
@@ -66,12 +66,12 @@ export function scoreToCBC(score) {
 function pointsToMeanGrade(totalPoints, subjectCount) {
   if (!subjectCount) return "—";
   const avg = totalPoints / subjectCount;
-  if (avg >= 4.0) return "A";
-  if (avg >= 3.5) return "A-";
-  if (avg >= 3.0) return "B+";
-  if (avg >= 2.5) return "B";
-  if (avg >= 2.0) return "B-";
-  if (avg >= 1.5) return "C+";
+  if (avg >= 8.0) return "A";
+  if (avg >= 7.0) return "A-";
+  if (avg >= 6.0) return "B+";
+  if (avg >= 5.0) return "B";
+  if (avg >= 4.0) return "B-";
+  if (avg >= 3.0) return "C+";
   return "C";
 }
 

@@ -24,14 +24,14 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const getGradePoint = (marks) => {
-  if (marks >= 90) return { point: 8, label: "A", tw: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-  if (marks >= 80) return { point: 7, label: "B", tw: "bg-blue-100 text-blue-700 border-blue-200" };
-  if (marks >= 70) return { point: 6, label: "C", tw: "bg-violet-100 text-violet-700 border-violet-200" };
-  if (marks >= 60) return { point: 5, label: "D", tw: "bg-amber-100 text-amber-700 border-amber-200" };
-  if (marks >= 50) return { point: 1, label: "E", tw: "bg-rose-100 text-rose-700 border-rose-200" };
-  if (marks >= 40) return { point: 3, label: "F", tw: "bg-gray-100 text-gray-700 border-gray-200" };
-  if (marks >=30) return { point: 2, label: "F", tw: "bg-black-100 text-black-700 border-black-200" };
-  else return { point: 1, label: "G", tw: "bg-red-100 text-black-700 border-black-200" };
+  if (marks >= 90) return { point: 8, label: "ME1", tw: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+  if (marks >= 80) return { point: 7, label: "ME2", tw: "bg-blue-100 text-blue-700 border-blue-200" };
+  if (marks >= 70) return { point: 6, label: "ME1", tw: "bg-violet-100 text-violet-700 border-violet-200" };
+  if (marks >= 60) return { point: 5, label: "ME2", tw: "bg-amber-100 text-amber-700 border-amber-200" };
+  if (marks >= 50) return { point: 4, label: "AE1", tw: "bg-rose-100 text-rose-700 border-rose-200" };
+  if (marks >= 40) return { point: 3, label: "AE2", tw: "bg-gray-100 text-gray-700 border-gray-200" };
+  if (marks >=30) return { point: 2, label: "BE1", tw: "bg-black-100 text-black-700 border-black-200" };
+  else return { point: 1, label: "BE2", tw: "bg-red-100 text-black-700 border-black-200" };
 };
 
 const EXAM_TYPE_LABELS = {
