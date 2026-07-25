@@ -4,9 +4,7 @@ import com.gradingSystem.GraadingSystem.Repository.StudentSubjectEnrollmentRepo;
 import com.gradingSystem.GraadingSystem.Repository.SubjectGroupRepo;
 import com.gradingSystem.GraadingSystem.Repository.SubjectRepo;
 import com.gradingSystem.GraadingSystem.Repository.StudentRepo;
-import com.gradingSystem.GraadingSystem.dto.BulkEnrollmentRequestDTO;
-import com.gradingSystem.GraadingSystem.dto.EnrollmentResponseDTO;
-import com.gradingSystem.GraadingSystem.dto.SubjectSummaryDTO;
+import com.gradingSystem.GraadingSystem.dto.*;
 import com.gradingSystem.GraadingSystem.model.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -216,4 +214,31 @@ public class EnrollmentService {
         enrollmentRepo.deleteByStudentAndSubjectAndSchool(student, subject, school);
     }
 
+    @Transactional
+    public BatchEnrollmentResultDTO batchEnrollSubjects(BatchEnrollSubjectsDTO request) {
+        School school = schoolContextService.getCurrentSchool();
+
+        List<Subjects> subjects = subjectRepo.findAllById(request.getSubjectIds());
+        List<Students> students = studentRepo.findAllById(request.getStudentIds());
+
+        int enrolledCount = 0;
+        List<String> skipped = new ArrayList<>();
+
+        for (Students student : students) {
+            for (Subjects subject : subjects) {
+                boolean already = enrollmentRepo.existsByStudentAndSubjectAndSchool(student, subject, school);
+                if (already) {
+                    skipped.add(student.getFirstName() + " already in " + subject.getSubjectName());
+                    continue;
+                }
+                StudentSubjectEnrollment e = new StudentSubjectEnrollment();
+                e.setStudent(student);
+                e.setSubject(subject);
+                e.setSchool(school);
+                enrollmentRepo.save(e);
+                enrolledCount++;
+            }
+        }
+        return new BatchEnrollmentResultDTO(enrolledCount, skipped);
+    }
 }

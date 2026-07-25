@@ -1,6 +1,8 @@
 package com.gradingSystem.GraadingSystem.Controller;
 
 import com.gradingSystem.GraadingSystem.Service.EnrollmentService;
+import com.gradingSystem.GraadingSystem.dto.BatchEnrollSubjectsDTO;
+import com.gradingSystem.GraadingSystem.dto.BatchEnrollmentResultDTO;
 import com.gradingSystem.GraadingSystem.dto.BulkEnrollmentRequestDTO;
 import com.gradingSystem.GraadingSystem.dto.EnrollmentResponseDTO;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +46,12 @@ public class EnrollmentController {
             @PathVariable Long subjectId) {
         enrollmentService.removeSubjectFromStudent(studentId, subjectId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_PRINCIPAL')")
+    @PostMapping("/batch")
+    public ResponseEntity<BatchEnrollmentResultDTO> batchEnroll(@RequestBody BatchEnrollSubjectsDTO request) {
+        return ResponseEntity.ok(enrollmentService.batchEnrollSubjects(request));
     }
 
 

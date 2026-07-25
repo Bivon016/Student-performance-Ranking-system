@@ -71,6 +71,7 @@ export const bulkEnrollStudent     = (payload)    => post(`${ENROLLMENT_BASE}/bu
 export const getStudentEnrollment  = (studentId)  => get(`${ENROLLMENT_BASE}/student/${studentId}`);
 export const removeEnrolledSubject = (studentId, subjectId) =>
   del(`${ENROLLMENT_BASE}/student/${studentId}/subject/${subjectId}`);
+export const batchEnrollSubjects   = (payload)    => post(`${ENROLLMENT_BASE}/batch`, payload);
 
 // export const getStudentEnrollment = (studentId) =>
 //   axios.get(`/api/enrollment/student/${studentId}`).then((res) => res.data);

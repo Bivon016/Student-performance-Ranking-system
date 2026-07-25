@@ -90,8 +90,7 @@ public class MarksService {
     public List<MarksResponseDTO> getAllMarks() {
         School school = schoolContextService.getCurrentSchool();
 
-        return marksrepo.findAll().stream().map(this::convertToDTO).toList();
-    }
+        return marksrepo.findBySchool(school).stream().map(this::convertToDTO).toList();    }
 
     // =====================================================
     // VIEW BY STUDENT
@@ -199,7 +198,7 @@ public class MarksService {
         if (marks >= 90) return 8.0;
         if (marks >= 80) return 7.0;
         if (marks >= 70) return 6.0;
-        if (marks >= 60) return 7.0;
+        if (marks >= 60) return 5.0;
         if (marks >= 50) return 4.0;
         if (marks >= 40) return 3.0;
         if (marks >= 30) return 2.0;

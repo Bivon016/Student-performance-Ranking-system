@@ -17,6 +17,9 @@ public interface Marksrepo extends JpaRepository<Marks, Long> {
     // ✅ View marks by student
     List<Marks> findByStudent(Students student);
 
+    // ✅ School-scoped: prevents cross-tenant data leakage
+    List<Marks> findBySchool(School school);
+
     // ✅ View marks by subject
     List<Marks> findBySubject(Subjects subject);
 

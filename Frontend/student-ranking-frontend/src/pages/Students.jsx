@@ -9,6 +9,7 @@ import {
   getRole,
 } from "../services/api";
 import EnrollmentModal from "../components/EnrollmentModal";
+import BatchEnrollmentModal from "../components/BatchEnrollmentModal";
 import {
   Users, Plus, Edit, Trash2, X, Save,
   Search, CheckCircle, GraduationCap, UserPlus,
@@ -67,6 +68,8 @@ const Students = () => {
   const [saving,           setSaving]           = useState(false);
   const [justAdded,        setJustAdded]        = useState(null);
   const [enrollingStudent, setEnrollingStudent] = useState(null);
+  const [selectedIds,      setSelectedIds]      = useState(new Set());
+  const [showBatchEnroll,  setShowBatchEnroll]  = useState(false);
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [search,       setSearch]       = useState("");
@@ -181,10 +184,42 @@ const Students = () => {
     try {
       await deleteStudent(id);
       setStudents((prev) => prev.filter((s) => s.id !== id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     } catch (err) {
       setError(err.message);
     }
   };
+
+  // ── Selection (batch enroll) ─────────────────────────────────────────────
+  const toggleSelected = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const allVisibleSelected =
+    filtered.length > 0 && filtered.every((s) => selectedIds.has(s.id));
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev);
+        filtered.forEach((s) => next.delete(s.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filtered.forEach((s) => next.add(s.id));
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
@@ -234,6 +269,28 @@ const Students = () => {
           </div>
         )}
       </div>
+
+      {/* ── Selection toolbar (batch enroll) ── */}
+      {canManage && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4
+          bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl">
+          <span className="text-sm font-semibold">
+            {selectedIds.size} student{selectedIds.size === 1 ? "" : "s"} selected
+          </span>
+          <button
+            onClick={() => setShowBatchEnroll(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
+              bg-amber-500 hover:bg-amber-400 transition-colors">
+            <BookOpen size={14} /> Enroll into Subject(s)
+          </button>
+          <button
+            onClick={clearSelection}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold
+              bg-white/10 hover:bg-white/20 transition-colors">
+            <X size={14} /> Clear
+          </button>
+        </div>
+      )}
 
       {/* ── Batch modal ── */}
       {showBatch && (
@@ -486,6 +543,16 @@ const Students = () => {
           <table className="min-w-full divide-y divide-gray-100">
             <thead>
               <tr className="bg-gray-50">
+                {canManage && (
+                  <th className="px-4 py-4 text-left w-10">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAllVisible}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400"
+                    />
+                  </th>
+                )}
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Student
                 </th>
@@ -512,6 +579,18 @@ const Students = () => {
                 return (
                   <tr key={`student-row-${student.id}`}
                     className="hover:bg-gray-50/80 transition-colors duration-150">
+
+                    {/* Select */}
+                    {canManage && (
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(student.id)}
+                          onChange={() => toggleSelected(student.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400"
+                        />
+                      </td>
+                    )}
 
                     {/* Student */}
                     <td className="px-6 py-4">
@@ -636,6 +715,15 @@ const Students = () => {
           student={enrollingStudent}
           onClose={() => setEnrollingStudent(null)}
           onSaved={() => setEnrollingStudent(null)}
+        />
+      )}
+
+      {/* ── Batch Enrollment Modal ── */}
+      {showBatchEnroll && (
+        <BatchEnrollmentModal
+          students={students.filter((s) => selectedIds.has(s.id))}
+          onClose={() => setShowBatchEnroll(false)}
+          onSaved={() => { setShowBatchEnroll(false); clearSelection(); }}
         />
       )}
 
