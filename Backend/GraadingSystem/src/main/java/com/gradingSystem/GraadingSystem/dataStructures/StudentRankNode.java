@@ -4,13 +4,13 @@ import com.gradingSystem.GraadingSystem.dto.StudentResultDTO;
 
 public class StudentRankNode {
     private StudentResultDTO resultDTO;
-    private double totalMarks;
+    private double totalPoints;
 
     public StudentRankNode(StudentResultDTO resultDTO) {
-        this.resultDTO  = resultDTO;
-        this.totalMarks = resultDTO.getTotalMarks();
+        this.resultDTO   = resultDTO;
+        this.totalPoints = resultDTO.getTotalPoints();
     }
 
-    public double          getTotalMarks() { return totalMarks; }
-    public StudentResultDTO getResultDTO() { return resultDTO; }
+    public double           getTotalPoints() { return totalPoints; }
+    public StudentResultDTO getResultDTO()   { return resultDTO; }
 }

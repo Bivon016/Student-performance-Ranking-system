@@ -17,6 +17,7 @@ public class StudentResultDTO {
     private List<String>      missingSubjects;
 
     private double            totalMarks;
+    private double            totalPoints;
     private int               rank;
     private boolean           hasIssues;   // true if any subject marks are missing
 
@@ -56,6 +57,10 @@ public class StudentResultDTO {
 
     public double            getTotalMarks()                   { return totalMarks; }
     public void              setTotalMarks(double t)           { this.totalMarks = t; }
+
+    // Sum of per-subject grade points (8-point scale) — this is what ranking is now based on
+    public double            getTotalPoints()                  { return totalPoints; }
+    public void              setTotalPoints(double p)          { this.totalPoints = p; }
 
     public int               getRank()                         { return rank; }
     public void              setRank(int r)                    { this.rank = r; }

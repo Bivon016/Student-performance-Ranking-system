@@ -213,6 +213,11 @@ const Results = () => {
   const [subjectRankingError,   setSubjectRankingError]   = useState(null);
   const [showSubjectRanking,    setShowSubjectRanking]    = useState(false);
   const abortRef = useRef(false);
+  const subjectRankingRef = useRef(null);
+  const exportMenuRef = useRef(null);
+  const [subjectRankingPdfLoading, setSubjectRankingPdfLoading] = useState(false);
+  const [rankingsPdfLoading, setRankingsPdfLoading] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     Promise.all([getAllClasses(), getAllPeriods(), getCurrentPeriod()])
@@ -224,6 +229,17 @@ const Results = () => {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleClickOutside = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showExportMenu]);
 
   const formGroups  = classes.reduce((acc, c) => { const f = c.formNumber; if (!acc[f]) acc[f] = []; acc[f].push(c); return acc; }, {});
   const sortedForms = Object.keys(formGroups).map(Number).sort((a, b) => a - b);
@@ -316,37 +332,189 @@ const Results = () => {
     navigate(`/report-card?${params.toString()}`);
   };
 
-  const handleExportExcel = () => {
-    if (!results) return;
+  const buildRankingsExportData = () => {
     const examLabel = EXAM_TYPES.find((e) => e.value === examType)?.label ?? examType;
     const rows = filteredStudents.map((student) => {
       const row = { Rank: student.rank, Student: student.studentName, Class: student.className };
       let totalPoints = 0;
+      let enrolledCount = 0;
       subjectNames.forEach((subj) => {
         const isEnrolled = subj in (student.subjectMarks ?? {});
         const val = isEnrolled ? student.subjectMarks[subj] : undefined;
         const gp  = isEnrolled ? calcGradePoint(val) : undefined;
         row[subj]           = !isEnrolled ? "N/A" : val ?? "Missing";
         row[`${subj} (GP)`] = !isEnrolled ? "N/A" : gp ?? "—";
-        if (isEnrolled) totalPoints += gp ?? 0;
+        if (isEnrolled) { totalPoints += gp ?? 0; enrolledCount += 1; }
       });
+      row["%"] = enrolledCount > 0 ? Math.round((student.totalMarks / enrolledCount) * 100) / 100 : "—";
       row["Total Marks"]  = student.totalMarks;
       row["Total Points"] = totalPoints;
       return row;
     });
+
+    // Column totals — raw marks only. Summing grade points or percentages across
+    // students isn't a meaningful number, so those cells are left blank, same as
+    // the paper sheet leaves its "points" sub-columns blank on the totals line.
+    const totalRow = { Rank: "", Student: "Total", Class: "" };
+    subjectNames.forEach((subj) => {
+      const sum = filteredStudents.reduce((acc, s) => {
+        const val = s.subjectMarks?.[subj];
+        return acc + (typeof val === "number" ? val : 0);
+      }, 0);
+      totalRow[subj]           = sum;
+      totalRow[`${subj} (GP)`] = "";
+    });
+    totalRow["%"] = "";
+    totalRow["Total Marks"]  = filteredStudents.reduce((acc, s) => acc + (s.totalMarks ?? 0), 0);
+    totalRow["Total Points"] = rows.reduce((acc, r) => acc + (typeof r["Total Points"] === "number" ? r["Total Points"] : 0), 0);
+
+    const avgPercentages = rows.map((r) => r["%"]).filter((v) => typeof v === "number");
     const avgRow = { Rank: "", Student: "Class Average", Class: "" };
     subjectNames.forEach((subj) => {
-      avgRow[subj]            = subjectAvgs[subj] ?? "—";
+      avgRow[subj]           = subjectAvgs[subj] ?? "—";
       avgRow[`${subj} (GP)`] = calcGradePoint(subjectAvgs[subj]) ?? "—";
     });
-    avgRow["Total Marks"] = results.overallAverage;
+    avgRow["%"] = avgPercentages.length
+      ? Math.round((avgPercentages.reduce((a, b) => a + b, 0) / avgPercentages.length) * 100) / 100
+      : "—";
+    avgRow["Total Marks"]  = results.overallAverage;
     avgRow["Total Points"] = "";
-    rows.push(avgRow);
+
+    rows.push(totalRow, avgRow);
+    return { rows, examLabel };
+  };
+
+  const handleExportExcel = () => {
+    if (!results) return;
+    const { rows, examLabel } = buildRankingsExportData();
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = Object.keys(rows[0] ?? {}).map((k) => ({ wch: Math.max(k.length, 12) }));
+    // Size each column to fit its own content (header + values) instead of a flat
+    // minimum width for every column — that flat minimum was the source of the huge
+    // gaps between narrow columns (Rank, GP scores) when printed.
+    const keys = Object.keys(rows[0] ?? {});
+    ws["!cols"] = keys.map((k) => {
+      const longest = rows.reduce((max, r) => {
+        const val = r[k];
+        const len = val === undefined || val === null ? 0 : String(val).length;
+        return Math.max(max, len);
+      }, k.length);
+      return { wch: Math.min(Math.max(longest + 2, 6), 20) };
+    });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Results");
     XLSX.writeFile(wb, `Results_${examLabel.replace(/\s+/g, "_")}.xlsx`);
+  };
+
+  const handleExportRankingsPDF = async () => {
+    if (!results || filteredStudents.length === 0) return;
+    setRankingsPdfLoading(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      await import("jspdf-autotable");
+      const { rows, examLabel } = buildRankingsExportData();
+      const classNames = [...new Set(filteredStudents.map((s) => s.className))];
+
+      // Two-row header: subject name spans its Marks + GP sub-columns, matching the on-screen table.
+      const head = [
+        [
+          { content: "Rank", rowSpan: 2 },
+          { content: "Student", rowSpan: 2 },
+          ...subjectNames.flatMap((subj) => [{ content: subj, colSpan: 2 }]),
+          { content: "%", rowSpan: 2 },
+          { content: "Total Marks", rowSpan: 2 },
+          { content: "Total Pts", rowSpan: 2 },
+        ],
+        subjectNames.flatMap(() => ["Marks", "GP"]),
+      ];
+
+      // rows already carries the Total (column sums) and Class Average lines appended
+      // at the end by buildRankingsExportData, so Excel and PDF stay in sync.
+      const body = rows.map((row) => {
+        const line = [row.Rank, row.Student];
+        subjectNames.forEach((subj) => {
+          line.push(row[subj]);
+          line.push(row[`${subj} (GP)`]);
+        });
+        line.push(row["%"], row["Total Marks"], row["Total Points"]);
+        return line.map((v) => (v === undefined || v === null || v === "" ? "—" : v));
+      });
+      const footerStartIndex = body.length - 2; // "Total" and "Class Average" rows
+
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.autoTable({
+        head,
+        body,
+        startY: 55,
+        margin: { top: 55, left: 20, right: 20, bottom: 20 },
+        styles: { fontSize: 7.5, cellPadding: 3, overflow: "linebreak", valign: "middle" },
+        headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: "bold", halign: "center" },
+        columnStyles: { 0: { halign: "center" }, 1: { halign: "left" } },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.row.index >= footerStartIndex) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [241, 245, 249];
+          }
+        },
+        // A table this wide (many subjects) won't fit one A4 page — split it across
+        // extra pages instead of shrinking or cutting content, and repeat Rank/Student
+        // on every page so a name is never separated from its row.
+        horizontalPageBreak: true,
+        horizontalPageBreakRepeat: [0, 1],
+        showHead: "everyPage",
+        didDrawPage: () => {
+          doc.setFontSize(12);
+          doc.setFont(undefined, "bold");
+          doc.text(`Student Rankings — ${examLabel}`, 20, 25);
+          doc.setFontSize(9);
+          doc.setFont(undefined, "normal");
+          doc.text(`Class${classNames.length > 1 ? "es" : ""}: ${classNames.join(", ")}`, 20, 40);
+        },
+      });
+
+      // Page numbers need the final count, so add them in a second pass over every page.
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont(undefined, "normal");
+        doc.text(`Page ${i} of ${pageCount}`, pageWidth - 80, 25);
+      }
+
+      doc.save(`Results_${examLabel.replace(/\s+/g, "_")}.pdf`);
+    } catch (err) {
+      console.error("Failed to export rankings PDF:", err);
+      setGenError(getFriendlyError(err));
+    } finally {
+      setRankingsPdfLoading(false);
+    }
+  };
+
+  const handleExportSubjectRankingPDF = async () => {
+    if (!subjectRanking || !subjectRankingRef.current) return;
+    setSubjectRankingPdfLoading(true);
+    try {
+      const html2pdfMod = await import("html2pdf.js");
+      const html2pdf = html2pdfMod.default;
+      const examLabel = EXAM_TYPES.find((e) => e.value === examType)?.label ?? examType;
+      await html2pdf()
+        .set({
+          margin: 20,
+          filename: `SubjectRanking_${examLabel.replace(/\s+/g, "_")}.pdf`,
+          image: { type: "jpeg", quality: 0.97 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: "pt", format: "a4", orientation: "landscape" },
+          pagebreak: { mode: ["css", "legacy"], avoid: ".subj-rank-card" },
+        })
+        .from(subjectRankingRef.current)
+        .save();
+    } catch (err) {
+      console.error("Failed to export subject ranking PDF:", err);
+      setGenError(getFriendlyError(err));
+    } finally {
+      setSubjectRankingPdfLoading(false);
+    }
   };
 
 const handleBulkDownload = async () => {
@@ -448,13 +616,37 @@ const handleBulkDownload = async () => {
               <Activity size={16} />
               {showSubjectRanking ? "Hide Subject Ranking" : "Subject Ranking"}
             </button>
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
-                bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm
-                hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-              <Download size={16} /> Export Excel
-            </button>
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu((v) => !v)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                  bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm
+                  hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                <Download size={16} /> Export
+                <ChevronDown size={14} className={`transition-transform ${showExportMenu ? "rotate-180" : ""}`} />
+              </button>
+              {showExportMenu && (
+                <div className={`absolute right-0 mt-2 w-52 rounded-xl shadow-lg border py-2 z-50 ${
+                  isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+                }`}>
+                  <button
+                    onClick={() => { handleExportExcel(); setShowExportMenu(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
+                      isDark ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"
+                    }`}>
+                    <Download size={15} /> Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={() => { handleExportRankingsPDF(); setShowExportMenu(false); }}
+                    disabled={rankingsPdfLoading}
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 disabled:opacity-60 ${
+                      isDark ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"
+                    }`}>
+                    <FileText size={15} /> {rankingsPdfLoading ? "Generating…" : "PDF"}
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={handleBulkDownload}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
@@ -983,19 +1175,33 @@ const handleBulkDownload = async () => {
           {/* ── Subject Ranking by Class (mean + std deviation) ── */}
           {showSubjectRanking && (
             <div className={`rounded-2xl shadow-sm border p-6 space-y-6 ${cardCls}`}>
-              <div className="flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600
-                  flex items-center justify-center text-white shadow-sm">
-                  <Activity size={16} />
-                </span>
-                <div>
-                  <p className={`text-sm font-bold uppercase tracking-wider ${isDark ? "text-gray-200" : "text-gray-700"}`}>
-                    Subject Ranking by Class
-                  </p>
-                  <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                    Subjects ranked by mean score within each class, with standard deviation
-                  </p>
+              <div className="flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600
+                    flex items-center justify-center text-white shadow-sm">
+                    <Activity size={16} />
+                  </span>
+                  <div>
+                    <p className={`text-sm font-bold uppercase tracking-wider ${isDark ? "text-gray-200" : "text-gray-700"}`}>
+                      Subject Ranking by Class
+                    </p>
+                    <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                      Subjects ranked by mean score within each class, with standard deviation
+                    </p>
+                  </div>
                 </div>
+                {!subjectRankingLoading && subjectRanking && (
+                  <button
+                    onClick={handleExportSubjectRankingPDF}
+                    disabled={subjectRankingPdfLoading}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                      bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-sm
+                      hover:shadow-md hover:-translate-y-0.5 transition-all duration-200
+                      disabled:opacity-60 disabled:pointer-events-none flex-shrink-0">
+                    <FileText size={16} />
+                    {subjectRankingPdfLoading ? "Generating…" : "Download PDF"}
+                  </button>
+                )}
               </div>
 
               {subjectRankingLoading && (
@@ -1011,10 +1217,10 @@ const handleBulkDownload = async () => {
               )}
 
               {!subjectRankingLoading && subjectRanking && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div ref={subjectRankingRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {subjectRanking.classResults.map((cls) => (
                     <div key={`subj-rank-${cls.classId}`}
-                      className={`rounded-xl border overflow-hidden ${isDark ? "border-gray-700" : "border-gray-100"}`}>
+                      className={`subj-rank-card rounded-xl border overflow-hidden ${isDark ? "border-gray-700" : "border-gray-100"}`}>
                       <div className={`px-4 py-2.5 font-bold text-sm ${
                         isDark ? "bg-gray-800/80 text-gray-200" : "bg-gray-50 text-gray-700"
                       }`}>
@@ -1094,7 +1300,8 @@ const handleBulkDownload = async () => {
           )}
 
           <p className="text-xs text-gray-400 text-right">
-            Use <strong>Export Excel</strong> for a spreadsheet · <strong>Download All PDFs</strong> for a ZIP of all report cards
+            Use <strong>Export</strong> for a spreadsheet or PDF of this table · <strong>Download All PDFs</strong> for a ZIP of all report cards ·
+            open <strong>Subject Ranking</strong> and use <strong>Download PDF</strong> for that table
           </p>
         </div>
       )}

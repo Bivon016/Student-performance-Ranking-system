@@ -134,7 +134,7 @@ export default function ReportCard() {
 
   const {
     name, admissionNo, form, academicYear, examLabel, currentTermLabel,
-    dateIssued, meanScore, meanLevel, meanGrade, subjects, subjectAverages,
+    dateIssued, meanScore, meanLevel, subjects, subjectAverages,
     teacherRemark, teacherName, hasIssues, missingSubjects, totalStudents, rank,
   } = report;
 
@@ -295,8 +295,8 @@ export default function ReportCard() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, flexShrink: 0 }}>
               <div>
                 <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: GOLD, marginBottom: 5 }}>Performance Summary</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 5 }}>
-                  {[["Mean Score",`${fmt(meanScore)}%`],["Mean Grade",meanGrade],["CBC Level",meanLevel],["Position",rankSuffix(rank)],["Out of",`${totalStudents ?? "—"} students`]].map(([l,v]) => (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 5 }}>
+                  {[["Mean Score",`${fmt(meanScore)}%`],["CBC Level",meanLevel],["Position",rankSuffix(rank)],["Out of",`${totalStudents ?? "—"} students`]].map(([l,v]) => (
                     <div key={l} style={{ background:"#fff", border:`1px solid ${RULE}`, borderTop:`2.5px solid ${GOLD}`, borderRadius:3, padding:"5px 4px", textAlign:"center" }}>
                       <div style={{ fontSize:7.5, color:MUTED, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:2 }}>{l}</div>
                       <div className="cg" style={{ fontSize:14, fontWeight:700, color:INK, lineHeight:1 }}>{v ?? "—"}</div>

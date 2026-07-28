@@ -20,23 +20,6 @@ import { getResults } from "../services/api";
 
 // ─── Grading helpers ─────────────────────────────────────────────────────────
 
-/** Numeric score → Kenyan KNEC letter grade */
-// export function scoreToGrade(score) {
-//   if (score == null) return "—";
-//   if (score >= 75) return "A";
-//   if (score >= 70) return "A-";
-//   if (score >= 65) return "B+";
-//   if (score >= 60) return "B";
-//   if (score >= 55) return "B-";
-//   if (score >= 50) return "C+";
-//   if (score >= 45) return "C";
-//   if (score >= 40) return "C-";
-//   if (score >= 35) return "D+";
-//   if (score >= 30) return "D";
-//   if (score >= 25) return "D-";
-//   return "E";
-// }
-
 /** Mirror of backend calculateGradePoint */
 export function calcGradePoint(marks) {
   if (marks == null) return null;
@@ -60,20 +43,6 @@ export function scoreToCBC(score) {
   if (score >= 40) return "AE2";
   if (score >= 30) return "BE1";
   return "BE2";
-}
-
-/** Grade-point mean → letter grade */
-// function pointsToMeanGrade(totalPoints, subjectCount) {
-//   if (!subjectCount) return "—";
-//   const avg = totalPoints / subjectCount;
-//   if (avg >= 8.0) return "A";
-//   if (avg >= 7.0) return "A-";
-//   if (avg >= 6.0) return "B+";
-//   if (avg >= 5.0) return "B";
-//   if (avg >= 4.0) return "B-";
-//   if (avg >= 3.0) return "C+";
-
-//   return "C";
 }
 
 function ordinal(n) {
@@ -134,7 +103,6 @@ export function useReportCard(studentId, classIds = [], examType = "FINAL_EXAM",
           name,
           total:   marks,          // used by dark-theme dashboard
           score:   marks,          // used by ReportCard print layout (s.score)
-          grade:   scoreToGrade(marks),
           gp:      calcGradePoint(marks),
           level,                   // CBC level string e.g. "EE2"
           missing: marks == null,
@@ -143,7 +111,6 @@ export function useReportCard(studentId, classIds = [], examType = "FINAL_EXAM",
 
       const completed    = subjects.filter((s) => !s.missing);
       const totalPoints  = completed.reduce((a, s) => a + (s.gp ?? 0), 0);
-      const meanGrade    = pointsToMeanGrade(totalPoints, completed.length);
       const meanScore    = completed.length
         ? parseFloat(
             (completed.reduce((a, s) => a + (s.total ?? 0), 0) / completed.length).toFixed(1)
@@ -180,7 +147,6 @@ export function useReportCard(studentId, classIds = [], examType = "FINAL_EXAM",
           : new Date().getFullYear() + " / " + (new Date().getFullYear() + 1),
 
         // ── Grades ────────────────────────────────────────────────────────
-        meanGrade,
         meanScore,
         meanLevel,                  // CBC level for the overall result
         totalMarks:  entry.totalMarks ?? 0,

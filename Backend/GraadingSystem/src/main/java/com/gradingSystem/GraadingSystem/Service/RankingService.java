@@ -43,6 +43,20 @@ public class RankingService {
 
 
 
+    // 8-point grading scale used to convert a subject's mark into grade points
+    // for ranking purposes. Kept in sync with MarksService.calculateGradePoint()
+    // and the frontend's calcGradePoint().
+    private double calculateGradePoint(double marks) {
+        if (marks >= 90) return 8.0;
+        if (marks >= 80) return 7.0;
+        if (marks >= 70) return 6.0;
+        if (marks >= 60) return 5.0;
+        if (marks >= 50) return 4.0;
+        if (marks >= 40) return 3.0;
+        if (marks >= 30) return 2.0;
+        return 1.0;
+    }
+
     public List<com.gradingSystem.GraadingSystem.dto.StudentRankingDTO> rankStudentsByForm(int form) {
         List<Object[]> rawData = marksrepo.getStudentTotalsByForm(form);
         MaxHeap heap = new MaxHeap(rawData.size());
@@ -57,6 +71,10 @@ public class RankingService {
                             Collections.emptyMap(), Collections.emptyList(),
                             totalMarks, 0
                     );
+            // Legacy endpoint only has a combined SUM(marksValue) with no per-subject
+            // breakdown, so a real per-subject points conversion isn't possible here.
+            // Fall back to marks so this still ranks consistently.
+            dto.setTotalPoints(totalMarks);
             heap.insert(new StudentRankNode(dto));
         }
         List<com.gradingSystem.GraadingSystem.dto.StudentRankingDTO> rankings = new ArrayList<>();
@@ -66,7 +84,7 @@ public class RankingService {
             rankings.add(new com.gradingSystem.GraadingSystem.dto.StudentRankingDTO(
                     node.getResultDTO().getStudentId(),
                     node.getResultDTO().getStudentName(),
-                    (int) node.getTotalMarks(),
+                    (int) node.getResultDTO().getTotalMarks(),
                     rank++
             ));
         }
@@ -192,7 +210,8 @@ public class RankingService {
             Set<String> enrolledSubjects =
                     studentEnrolledSubjects.getOrDefault(student.getId(), Collections.emptySet());
 
-            double total = 0.0;
+            double total       = 0.0;
+            double totalPoints = 0.0;
 
             for (String subjectName : allSubjectNames) {
                 boolean isCompulsory = compulsorySubjects.contains(subjectName);
@@ -207,6 +226,7 @@ public class RankingService {
                         // Compulsory + no marks → count as 0, still flag as missing
                         subjectTotals.put(subjectName, 0.0);
                         missingSubjects.add(subjectName);
+                        totalPoints += calculateGradePoint(0.0);
                     } else {
                         // Optional + enrolled + no marks → exclude from total, flag missing
                         subjectTotals.put(subjectName, null);
@@ -216,11 +236,12 @@ public class RankingService {
                     double sum = values.stream().mapToDouble(Double::doubleValue).sum();
                     subjectTotals.put(subjectName, sum);
                     total += sum;
+                    totalPoints += calculateGradePoint(sum);
                 }
             }
 
             Classes cls = classMap.get(student.getClassId());
-            unranked.add(new StudentResultDTO(
+            StudentResultDTO resultDTO = new StudentResultDTO(
                     student.getId(),
                     student.getFirstName() + " " + student.getSecondName(),
                     student.getClassId(),
@@ -229,7 +250,9 @@ public class RankingService {
                     missingSubjects,
                     total,
                     0
-            ));
+            );
+            resultDTO.setTotalPoints(totalPoints);
+            unranked.add(resultDTO);
         }
 
         return new StudentResultsContext(unranked, allSubjectNames, compulsorySubjects, period);

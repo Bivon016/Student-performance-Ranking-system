@@ -31,7 +31,7 @@ public class MaxHeap {
     private void heapifyUp(int index) {
         while (index > 0) {
             int parent = (index - 1) / 2;
-            if (heap[parent].getTotalMarks() >= heap[index].getTotalMarks()) break;
+            if (heap[parent].getTotalPoints() >= heap[index].getTotalPoints()) break;
             swap(parent, index);
             index = parent;
         }
@@ -42,10 +42,10 @@ public class MaxHeap {
             int left  = index * 2 + 1;
             int right = left + 1;
             int largest = left;
-            if (right < size && heap[right].getTotalMarks() > heap[left].getTotalMarks()) {
+            if (right < size && heap[right].getTotalPoints() > heap[left].getTotalPoints()) {
                 largest = right;
             }
-            if (heap[index].getTotalMarks() >= heap[largest].getTotalMarks()) break;
+            if (heap[index].getTotalPoints() >= heap[largest].getTotalPoints()) break;
             swap(index, largest);
             index = largest;
         }
